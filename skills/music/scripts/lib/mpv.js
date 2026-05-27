@@ -131,6 +131,21 @@ async function waitForMpv() {
 }
 
 /**
+ * 验证媒体是否真的在播放（检查 time-pos 是否可用）。
+ * 解决 "mpv 在 idle 状态但没加载到音频流" 的假播放问题。
+ * 最多等待 maxWaitMs（默认 15 秒），期间 mpv 有机会解析加载 URL。
+ */
+async function verifyPlayback(maxWaitMs = 15000) {
+  const deadline = Date.now() + maxWaitMs;
+  while (Date.now() < deadline) {
+    const res = await sendIpc({ command: ["get_property", "time-pos"] }, 1500);
+    if (res.ok) return true;
+    await sleep(750);
+  }
+  return false;
+}
+
+/**
  * 停止旧播放器后短暂等待进程退出，避免固定等待拖慢每次播放。
  */
 async function waitForMpvToStop() {
@@ -165,5 +180,6 @@ module.exports = {
   sendIpc,
   waitForMpv,
   waitForMpvToStop,
+  verifyPlayback,
   startMpv,
 };

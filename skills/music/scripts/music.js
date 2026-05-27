@@ -6,7 +6,7 @@ const os = require("os");
 const path = require("path");
 
 const { usage, exitWithError, checkPlaybackDependencies } = require("./lib/utils");
-const { CONTROL_ACTIONS, CONTROL_MAP, mpvIsRunning, killMpv, sendIpc, waitForMpv, waitForMpvToStop, startMpv } = require("./lib/mpv");
+const { CONTROL_ACTIONS, CONTROL_MAP, mpvIsRunning, killMpv, sendIpc, waitForMpv, waitForMpvToStop, verifyPlayback, startMpv } = require("./lib/mpv");
 const { ytSearch, ytFlatSearch, videoUrlForItem, ytMediaInfoForItem, ytSongSearch } = require("./lib/ytdl");
 const { selectSongCandidates } = require("./lib/scoring");
 const { printSongInfo, printPlaylistHeader, printControl } = require("./lib/output");
@@ -98,7 +98,9 @@ async function play(args) {
     exitWithError(`No song found for \`${options.query}\`.`);
   }
 
-  const songs = selectSongCandidates(options.query, results, 1);
+  // 取多个候选用于重试（避免单一 YouTube 源加载失败导致假播放）
+  const MAX_ATTEMPTS = 3;
+  const songs = selectSongCandidates(options.query, results, MAX_ATTEMPTS);
   if (songs.length === 0) {
     exitWithError(`No song-like result found for \`${options.query}\`.`, [
       "Try adding an artist name, for example:",
@@ -109,25 +111,41 @@ async function play(args) {
     ]);
   }
 
-  // 直接用 flat 搜索结果的页面 URL 交给 mpv 播放：
-  // mpv 内置 ytdl-hook 会自行提取音频流，省掉了 yt-dlp 完整解析（容易被 YouTube bot 检测拦截）。
-  const playbackUrl = videoUrlForItem(songs[0]);
-  if (!playbackUrl) {
-    exitWithError(`Could not get an audio URL for \`${options.query}\`.`);
+  // 依次尝试每个候选，直到有可验证的播放为止。
+  let lastAttempt = null;
+  for (let i = 0; i < songs.length; i += 1) {
+    lastAttempt = songs[i];
+    const playbackUrl = videoUrlForItem(lastAttempt);
+    if (!playbackUrl) continue;
+
+    startMpv([playbackUrl]);
+    if (!(await waitForMpv())) {
+      killMpv();
+      await waitForMpvToStop();
+      continue;
+    }
+
+    if (await verifyPlayback()) {
+      printSongInfo({
+        title: lastAttempt.title || options.query,
+        uploader: lastAttempt.uploader || lastAttempt.channel || "",
+        channel: lastAttempt.channel || lastAttempt.uploader || "",
+        duration: lastAttempt.duration,
+        duration_string: lastAttempt.duration_string || null,
+        upload_date: lastAttempt.upload_date || "",
+      });
+      return;
+    }
+
+    // 验证失败（stream 加载失败）：清理并换下一个候选
+    killMpv();
+    await waitForMpvToStop();
   }
 
-  startMpv([playbackUrl]);
-  if (!(await waitForMpv())) {
-    exitWithError("mpv failed to start.");
-  }
-  printSongInfo({
-    title: songs[0].title || options.query,
-    uploader: songs[0].uploader || songs[0].channel || "",
-    channel: songs[0].channel || songs[0].uploader || "",
-    duration: songs[0].duration,
-    duration_string: songs[0].duration_string || null,
-    upload_date: songs[0].upload_date || "",
-  });
+  exitWithError(`Failed to stream \`${options.query}\` (YouTube audio stream could not be loaded for any candidate).`, [
+    "This usually means yt-dlp/mpv is blocked by YouTube bot detection.",
+    "Try again later, or try a different song.",
+  ]);
 }
 
 /**
