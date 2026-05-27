@@ -26,50 +26,35 @@ function yearFromUploadDate(value) {
 }
 
 /**
- * 输出单曲播放信息，格式为 Markdown。
+ * 输出单曲播放确认，仅显示歌名。
  */
 function printSongInfo(info) {
   const title = info.title || "Unknown title";
-  const uploader = info.uploader || info.channel || "";
-  const year = yearFromUploadDate(info.upload_date);
-  const duration = formatDuration(info.duration_string || info.duration);
-
-  // 输出保持简短，歌曲简介由智能体根据这些字段补充。
-  const lines = ["## Now Playing", "", `**${title}**`, "", "| Field | Value |", "|---|---|"];
-  if (uploader) lines.push(`| Artist / Channel | ${escapeTable(uploader)} |`);
-  if (year) lines.push(`| Year | ${escapeTable(year)} |`);
-  if (duration) lines.push(`| Duration | ${escapeTable(duration)} |`);
-  console.log(lines.join("\n"));
+  console.log(`**Now Playing: ${title}**`);
 }
 
 /**
- * 输出歌手模式的播放列表信息，格式为 Markdown。
+ * 输出歌手模式的播放列表确认。
  */
 function printPlaylistHeader(artist, songs, urlCount) {
   const lines = [
-    "## Playlist Started",
+    `**Playing: ${artist}** (${urlCount} track${urlCount === 1 ? "" : "s"})`,
     "",
-    `**${artist}**`,
-    "",
-    `Loaded ${urlCount} track${urlCount === 1 ? "" : "s"}.`,
-    "",
-    "| # | Title |",
-    "|---:|---|",
+    songs.map((item, index) => `${index + 1}. ${item.title || "Unknown title"}`).join("\n"),
   ];
-  songs.forEach((item, index) => {
-    lines.push(`| ${index + 1} | ${escapeTable(item.title || "Unknown title")} |`);
-  });
   console.log(lines.join("\n"));
 }
 
 /**
- * 输出播放控制结果，格式为 Markdown。
+ * 输出播放控制结果。
  */
 function printControl(action, value = "") {
   const label = LABELS[action] || action;
-  const lines = ["## Playback Control", "", `**${label}**`];
-  if (value) lines.push("", value);
-  console.log(lines.join("\n"));
+  if (value) {
+    console.log(`${label}: ${value}`);
+  } else {
+    console.log(`${label}`);
+  }
 }
 
 module.exports = {
