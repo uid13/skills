@@ -15,7 +15,7 @@ const { printSongInfo, printPlaylistHeader, printControl } = require("./lib/outp
  * 解析 play 子命令参数，支持单曲模式、歌手模式和数量限制。
  */
 function parsePlayArgs(args) {
-  const options = { query: "", artist: false, count: 10 };
+  const options = { query: "", artist: false, count: 10, outfile: "" };
   const queryParts = [];
 
   for (let i = 0; i < args.length; i += 1) {
@@ -31,6 +31,9 @@ function parsePlayArgs(args) {
         exitWithError("`--count` must be a positive number.");
       }
       options.count = Math.min(parsed, 20);
+      i += 1;
+    } else if (arg === "--outfile") {
+      options.outfile = args[i + 1] || "";
       i += 1;
     } else {
       queryParts.push(arg);
@@ -106,16 +109,9 @@ async function play(args) {
     ]);
   }
 
-  // 只对最终选中的歌曲做一次完整解析，确认音频可用并获取展示元数据。
-  const media = ytMediaInfoForItem(songs[0]);
-  if (!media) {
-    exitWithError(`Could not get info for \`${options.query}\`.`);
-  }
-
-  // 优先使用视频页面 URL，让 mpv 的 ytdl-hook 自行提取音频流，
-  // 避免 yt-dlp 提取的临时直链过期导致 HTTP 403。
-  const pageUrl = media.webpage_url || videoUrlForItem(songs[0]);
-  const playbackUrl = pageUrl || media.url;
+  // 直接用 flat 搜索结果的页面 URL 交给 mpv 播放：
+  // mpv 内置 ytdl-hook 会自行提取音频流，省掉了 yt-dlp 完整解析（容易被 YouTube bot 检测拦截）。
+  const playbackUrl = videoUrlForItem(songs[0]);
   if (!playbackUrl) {
     exitWithError(`Could not get an audio URL for \`${options.query}\`.`);
   }
@@ -124,7 +120,14 @@ async function play(args) {
   if (!(await waitForMpv())) {
     exitWithError("mpv failed to start.");
   }
-  printSongInfo(media);
+  printSongInfo({
+    title: songs[0].title || options.query,
+    uploader: songs[0].uploader || songs[0].channel || "",
+    channel: songs[0].channel || songs[0].uploader || "",
+    duration: songs[0].duration,
+    duration_string: songs[0].duration_string || null,
+    upload_date: songs[0].upload_date || "",
+  });
 }
 
 /**
@@ -163,12 +166,51 @@ async function control(action) {
 
 /**
  * 命令行入口，根据第一个参数分发到播放或控制逻辑。
+ * --outfile <path>：将 stdout/stderr 重定向到文件，供调用方轮询读取（配合 Start-Process 使用）。
  */
 async function main() {
-  const [command, ...args] = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
+
+  const cleanArgs = [];
+  let outputFile = "";
+  for (let i = 0; i < rawArgs.length; i += 1) {
+    if (rawArgs[i] === "--outfile" && i + 1 < rawArgs.length) {
+      outputFile = rawArgs[i + 1];
+      i += 1;
+    } else {
+      cleanArgs.push(rawArgs[i]);
+    }
+  }
+
+  // --outfile 模式：将 console.log / console.error 重定向到文件
+  let outfileFd = null;
+  if (outputFile) {
+    outfileFd = fs.openSync(outputFile, "w");
+    console.log = (...args) => {
+      try { fs.writeSync(outfileFd, args.join(" ") + "\n"); } catch {}
+    };
+    console.error = (...args) => {
+      try { fs.writeSync(outfileFd, args.join(" ") + "\n"); } catch {}
+    };
+    console.log(JSON.stringify({ status: "searching", time: new Date().toISOString() }));
+    process.on("exit", () => {
+      try { fs.closeSync(outfileFd); } catch {}
+    });
+    process.on("uncaughtException", (err) => {
+      try {
+        fs.writeSync(outfileFd, JSON.stringify({ status: "error", message: err.message }) + "\n");
+      } catch {}
+      process.exit(1);
+    });
+  }
+
+  const [command, ...args] = cleanArgs;
   try {
     if (command === "play") {
       await play(args);
+      if (outfileFd !== null) {
+        fs.writeSync(outfileFd, JSON.stringify({ status: "done" }) + "\n");
+      }
       return;
     }
 
@@ -178,7 +220,6 @@ async function main() {
     }
 
     if (CONTROL_ACTIONS.includes(command)) {
-      // 允许快捷写法：node music.js pause，而不强制 control pause。
       await control(command);
       return;
     }

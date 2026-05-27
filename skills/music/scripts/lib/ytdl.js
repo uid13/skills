@@ -29,7 +29,7 @@ function parseJsonLines(output) {
  */
 function ytSearch(query, count = 1) {
   const result = run("yt-dlp", [`ytsearch${count}:${query}`, "--dump-json", "--no-warnings"], {
-    timeout: 60000,
+    timeout: 30000,
   });
   if (result.error) {
     exitWithError(`yt-dlp failed: ${result.error.message}`);
@@ -45,7 +45,7 @@ function ytSearch(query, count = 1) {
  */
 function ytFlatSearch(query, count = 1) {
   const result = run("yt-dlp", [`ytsearch${count}:${query}`, "--dump-json", "--flat-playlist", "--no-warnings"], {
-    timeout: 30000,
+    timeout: 20000,
   });
   if (result.error) {
     exitWithError(`yt-dlp failed: ${result.error.message}`);
@@ -71,10 +71,14 @@ function ytMediaInfoForItem(item) {
   if (!url) return null;
 
   const result = run("yt-dlp", [url, "--no-playlist", "-f", "bestaudio", "--dump-json", "--no-warnings"], {
-    timeout: 60000,
+    timeout: 30000,
   });
   if (result.error) {
     exitWithError(`yt-dlp failed: ${result.error.message}`);
+  }
+  if (result.status !== 0 && !result.stdout) {
+    // yt-dlp 被 YouTube bot 检测拦截：返回 null，让调用方回退到 flat 搜索结果。
+    return null;
   }
 
   const info = parseJsonLines(result.stdout || "")[0];
@@ -96,7 +100,7 @@ function ytAudioUrlForItem(item) {
   if (!url) return "";
 
   const result = run("yt-dlp", [url, "--no-playlist", "-f", "bestaudio", "-g", "--no-warnings"], {
-    timeout: 60000,
+    timeout: 30000,
   });
   if (result.error) {
     exitWithError(`yt-dlp failed: ${result.error.message}`);

@@ -13,7 +13,7 @@ license: MIT
 1. 判断用户意图。
 2. 如果请求明确，构造搜索词并调用 `scripts/music.js`。
 3. 如果请求模糊，先问 1-2 个简短问题，不要播放。
-4. 播放成功后，最终回复必须包含播放状态和 1 段歌曲简介。
+4. 播放成功后，转述 `Now Playing: ...` 并补充歌曲简介。
 
 ## 意图识别
 
@@ -45,23 +45,50 @@ license: MIT
 
 ## 播放命令
 
-播放单曲：
+播放命令必须让 bash 工具**快速返回**（< 5 秒），否则会被 shell 超时中断并触发 `ChildProcess.kill`。通过 `--outfile` 把完整输出写到文件，命令本身只是启动搜索+播放。
+
+### Windows（pwsh）
 
 ```bash
-node "$skillDir/scripts/music.js" play "歌曲名或搜索词"
+Start-Process node -ArgumentList "$skillDir/scripts/music.js","play","歌曲名或搜索词","--outfile","$TMPDIR/music_out.json" -WindowStyle Hidden
 ```
 
-播放某个歌手的多首歌：
+关键：不加 `-Wait`，PowerShell 会立即退出，node 在后台继续搜索和播放。
+
+歌手多首歌：
 
 ```bash
-node "$skillDir/scripts/music.js" play "歌手名" --artist
-node "$skillDir/scripts/music.js" play "歌手名" --artist --count 5
+Start-Process node -ArgumentList "$skillDir/scripts/music.js","play","歌手名","--artist","--outfile","$TMPDIR/music_out.json" -WindowStyle Hidden
 ```
 
-示例：
-- `play Numb` → `node "$skillDir/scripts/music.js" play "Numb"`
-- `播放周杰伦的歌` → `node "$skillDir/scripts/music.js" play "周杰伦" --artist`
-- `来点适合写代码的英文歌` → `node "$skillDir/scripts/music.js" play "适合写代码的英文歌"`
+### Linux / macOS
+
+```bash
+node "$skillDir/scripts/music.js" play "歌曲名或搜索词" --outfile "$TMPDIR/music_out.json" &
+```
+
+加 `&` 让 node 在后台运行，shell 立即退出。设置 `timeout: 180000`。
+
+### 播放后读取结果
+
+无论哪个平台，命令立即返回后，**等待 8-15 秒**（搜索+mpv 启动时间），然后读取输出文件：
+
+```bash
+# Windows
+Get-Content "$TMPDIR\music_out.json"
+
+# Linux / macOS
+cat "$TMPDIR/music_out.json"
+```
+
+文件内容：
+- 成功：`**Now Playing: [歌名]**`
+- 失败：`## Music Error\n\n[错误信息]`
+
+### 示例
+- `play Numb` → `Start-Process node -ArgumentList "$skillDir/scripts/music.js","play","Numb","--outfile","$TMPDIR/music_out.json" -WindowStyle Hidden`（然后等 10 秒读文件）
+- `播放周杰伦的歌` → `Start-Process node -ArgumentList "$skillDir/scripts/music.js","play","周杰伦","--artist","--outfile","$TMPDIR/music_out.json" -WindowStyle Hidden`
+- `来点适合写代码的英文歌` → `Start-Process node -ArgumentList "$skillDir/scripts/music.js","play","适合写代码的英文歌","--outfile","$TMPDIR/music_out.json" -WindowStyle Hidden`
 - `放点歌` → 先问：`想听什么心情或场景的？偏中文还是英文？`
 
 ## 控制命令
@@ -104,15 +131,20 @@ node "$skillDir/scripts/music.js" control pause
 
 ## 回复要求
 
-播放成功后，不要只转述脚本输出。最终回复应包含：
-- “已开始播放”或“正在播放”的状态。
-- 歌名、艺人/频道、年份或时长等关键信息。
-- 1 段 2-4 句的歌曲简介，说明主题、情绪、风格或背景。
+播放成功后：
+1. **先转述脚本输出**：`Now Playing: [歌名]` — 告知用户正在播放什么。
+2. **补充 1 段歌曲简介**（2-4 句）：基于歌名/艺人/你的知识，说明歌曲的主题、情绪、风格或背景。
 
-控制命令成功后，简短确认即可，例如 `已暂停。`、`已停止播放。`
+控制命令（pause/resume/next/stop/status）：
+- 脚本输出简短状态词（如 `Paused`、`Stopped`）。
+- 转述给用户即可，例如：`已暂停。`、`切换到下一首。`
 
 ## 注意事项
 
 - 脚本会在缺少必要播放工具时输出安装提示；按提示处理即可。
 - 部分歌曲可能因版权、地区或网络原因无法播放。
-- 本技能不要求 Python；发布时保留 `SKILL.md` 和 `scripts/music.js`。
+- 发布时保留 `SKILL.md` 和 `scripts/music.js`。
+- **Windows 播放命令必须用 `Start-Process -WindowStyle=Hidden`（不加 `-Wait`）**，让 PowerShell 立即退出，node 在后台独立运行。
+- **Linux/macOS 播放命令末尾加 `&`** 让 node 后台运行。
+- 播放命令返回后，agent 必须等待 8-15 秒再读取输出文件。
+- 控制命令无需特殊处理，任何平台直接调用即可。

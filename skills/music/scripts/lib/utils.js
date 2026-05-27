@@ -3,6 +3,7 @@
 
 const { spawnSync } = require("child_process");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 
 // 当前运行平台是否为 Windows，用于选择进程检查、停止命令和 IPC 路径。
@@ -66,9 +67,10 @@ function run(command, args, options = {}) {
 
 /**
  * 判断外部命令是否能正常执行版本查询。
+ * yt-dlp 是 Python 工具，Windows 上首次启动可能较慢，需要更长超时。
  */
 function commandVersionWorks(command) {
-  const result = run(command, ["--version"], { timeout: 10000 });
+  const result = run(command, ["--version"], { timeout: 8000 });
   return result.status === 0 && Boolean(`${result.stdout || ""}${result.stderr || ""}`.trim());
 }
 
@@ -96,7 +98,7 @@ function windowsPathCandidates(command) {
  */
 function locatorCandidates(command) {
   const locator = IS_WINDOWS ? ["where.exe", [command]] : ["sh", ["-lc", `command -v ${command}`]];
-  const result = run(locator[0], locator[1], { timeout: 10000 });
+  const result = run(locator[0], locator[1], { timeout: 5000 });
   if (result.status !== 0) return [];
   return (result.stdout || "")
     .split(/\r?\n/)
@@ -105,18 +107,65 @@ function locatorCandidates(command) {
 }
 
 /**
- * 多策略解析命令，避免不同 shell 的 PATH 检测差异导致误判缺失。
+ * 多策略解析命令，避免不同 shell 的 PATH 检测差异导致誤判缺失。
+ * 结果会被缓存，因为同一次运行内 executable 路径不会变化。
+ * 同时持久化到文件，避免后续每次播放都重新扫描 PATH。
  */
-function resolveExecutable(command) {
-  if (commandVersionWorks(command)) return command;
+const resolveCache = new Map();
+const cacheFile = path.join(os.tmpdir(), "music_executable_cache.json");
 
-  const candidates = IS_WINDOWS ? [...windowsPathCandidates(command), ...locatorCandidates(command)] : locatorCandidates(command);
-  for (const candidate of candidates) {
-    if (!candidate || (path.isAbsolute(candidate) && !fs.existsSync(candidate))) continue;
-    if (commandVersionWorks(candidate)) return candidate;
+function loadPersistentCache() {
+  try {
+    if (fs.existsSync(cacheFile)) {
+      const data = JSON.parse(fs.readFileSync(cacheFile, "utf8"));
+      for (const [k, v] of Object.entries(data)) resolveCache.set(k, v);
+    }
+  } catch {}
+}
+
+function savePersistentCache() {
+  try {
+    fs.writeFileSync(cacheFile, JSON.stringify(Object.fromEntries(resolveCache)), "utf8");
+  } catch {}
+}
+
+loadPersistentCache();
+
+function resolveExecutable(command) {
+  if (resolveCache.has(command)) {
+    // 优先使用缓存路径，快速验证有效性
+    const cached = resolveCache.get(command);
+    if (cached) {
+      try {
+        const result = run(cached, ["--version"], { timeout: 3000 });
+        if (result.status === 0) return cached;
+      } catch {}
+    }
+    resolveCache.delete(command);
   }
 
-  return "";
+  let resolved = "";
+  if (commandVersionWorks(command)) {
+    resolved = command;
+  } else {
+    // 优先使用 locator 结果，避免遍历上百个 PATH 候选
+    const locatorList = locatorCandidates(command);
+    for (const candidate of locatorList) {
+      if (!candidate || (path.isAbsolute(candidate) && !fs.existsSync(candidate))) continue;
+      if (commandVersionWorks(candidate)) { resolved = candidate; break; }
+    }
+    if (!resolved && IS_WINDOWS) {
+      const candidates = windowsPathCandidates(command);
+      for (const candidate of candidates) {
+        if (!candidate || (path.isAbsolute(candidate) && !fs.existsSync(candidate))) continue;
+        if (commandVersionWorks(candidate)) { resolved = candidate; break; }
+      }
+    }
+  }
+
+  resolveCache.set(command, resolved);
+  if (resolved) savePersistentCache();
+  return resolved;
 }
 
 /**
@@ -128,8 +177,10 @@ function installHint() {
 
 /**
  * 播放前检查必要依赖；控制命令不调用此函数，避免无关依赖阻塞控制操作。
+ * 环境变量 MUSIC_SKIP_DEPS=1 可跳过检查（适用于已确认依赖正常的场景）。
  */
 function checkPlaybackDependencies() {
+  if (process.env.MUSIC_SKIP_DEPS === "1") return;
   const missing = [];
   if (!resolveExecutable("yt-dlp")) missing.push("yt-dlp");
   if (!resolveExecutable("mpv")) missing.push("mpv");
