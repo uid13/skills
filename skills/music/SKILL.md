@@ -143,8 +143,7 @@ node "$skillDir/scripts/music.js" control pause
 
 - 脚本会在缺少必要播放工具时输出安装提示；按提示处理即可。
 - 部分歌曲可能因版权、地区或网络原因无法播放。
-- 发布时保留 `SKILL.md` 和 `scripts/music.js`。
-- **Windows 播放命令必须用 `Start-Process -WindowStyle=Hidden`（不加 `-Wait`）**，让 PowerShell 立即退出，node 在后台独立运行。
-- **Linux/macOS 播放命令末尾加 `&`** 让 node 后台运行。
-- 播放命令返回后，agent 必须等待 8-15 秒再读取输出文件。
+- 本技能不要求 Python；发布时保留 `SKILL.md` 和 `scripts/music.js`。
+- **播放验证**：脚本启动 mpv 后会用 IPC 检查 `time-pos` 确认真正在播放。如果某个 YouTube 源加载失败，会自动尝试搜索结果中的下一个候选（最多 3 次）。如果全部失败，会明确报告 `Failed to stream ...`，**不会再出现"mpv 进程在但没声音"的假播放**。
+- `--outfile` 模式下 bash 可能报 `ChildProcess.kill`，这不影响播放：脚本会在 kill 前完成输出写入。
 - 控制命令无需特殊处理，任何平台直接调用即可。
