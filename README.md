@@ -31,7 +31,7 @@ npx skills add uid13/skills
 Pin a specific release:
 
 ```bash
-gh skill install uid13/skills music --pin v1.1.0
+gh skill install uid13/skills music --pin v1.2.0
 ```
 
 ## Requirements
