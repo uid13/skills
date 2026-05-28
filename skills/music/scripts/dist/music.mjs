@@ -1,10 +1,14 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import { spawn } from "node:child_process";
 import * as net from "node:net";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+//#region \0rolldown/runtime.js
+var __require = /* @__PURE__ */ createRequire(import.meta.url);
+//#endregion
 //#region src/lib/utils.ts
 /**
 * music 技能工具函数库
@@ -25,6 +29,48 @@ import * as path from "node:path";
 * 当前运行平台是否为 Windows
 */
 var IS_WINDOWS = process.platform === "win32";
+var detectedWindowsShell;
+/**
+* 检测 Windows 系统下可用的 shell（优先 pwsh，其次 bash）
+* 用于避免使用 cmd（cmd 没有 mise 激活，找不到 yt-dlp/mpv）
+* 
+* @returns shell 路径或名称（'pwsh' | 'bash' | 'cmd.exe）
+*/
+function detectWindowsShell() {
+	if (detectedWindowsShell !== void 0) return detectedWindowsShell;
+	if (process.env.PSModulePath?.includes("PowerShell\\7") || process.env.PSModulePath?.includes("PowerShell/7")) {
+		detectedWindowsShell = "pwsh";
+		return detectedWindowsShell;
+	}
+	if (process.env.GIT_BASH_PATH) {
+		detectedWindowsShell = process.env.GIT_BASH_PATH;
+		return detectedWindowsShell;
+	}
+	try {
+		const result = __require("child_process").spawnSync("where", ["pwsh"], {
+			encoding: "utf8",
+			windowsHide: true,
+			timeout: 2e3
+		});
+		if (result.status === 0 && result.stdout.includes("pwsh")) {
+			detectedWindowsShell = "pwsh";
+			return detectedWindowsShell;
+		}
+	} catch {}
+	try {
+		const result = __require("child_process").spawnSync("where", ["bash"], {
+			encoding: "utf8",
+			windowsHide: true,
+			timeout: 2e3
+		});
+		if (result.status === 0 && result.stdout.includes("bash")) {
+			detectedWindowsShell = "bash";
+			return detectedWindowsShell;
+		}
+	} catch {}
+	detectedWindowsShell = "pwsh";
+	return detectedWindowsShell;
+}
 /**
 * 不同系统下的依赖安装命令
 */
@@ -50,7 +96,7 @@ var INSTALL_COMMANDS = {
 async function exec(command, args, options = {}) {
 	const { timeout = 3e4, maxBuffer = 20 * 1024 * 1024, encoding = "utf8", windowsHide = true } = options;
 	return new Promise((resolve) => {
-		const child = spawn(command, args, {
+		const spawnOptions = {
 			encoding,
 			windowsHide,
 			stdio: [
@@ -58,7 +104,26 @@ async function exec(command, args, options = {}) {
 				"pipe",
 				"pipe"
 			]
-		});
+		};
+		let actualCommand = command;
+		let actualArgs = args;
+		if (IS_WINDOWS) {
+			const shell = detectWindowsShell();
+			if (shell === "pwsh") {
+				const cmdString = `& "${command}" ${args.map((a) => `"${a.replace(/"/g, "`\"")}"`).join(" ")}`;
+				actualCommand = "pwsh";
+				actualArgs = [
+					"-NoProfile",
+					"-Command",
+					cmdString
+				];
+			} else if (shell === "bash") {
+				const cmdString = [command, ...args.map((a) => `"${a.replace(/"/g, "\\\"")}"`)].join(" ");
+				actualCommand = "bash";
+				actualArgs = ["-c", cmdString];
+			}
+		}
+		const child = spawn(actualCommand, actualArgs, spawnOptions);
 		let stdout = "";
 		let stderr = "";
 		let killed = false;
@@ -626,6 +691,25 @@ function outputError(message, details = [], prefix = "") {
 	}
 }
 /**
+* 输出状态信息
+* 
+* 终端格式：ℹ [前缀] 消息（蓝色）
+* JSON 格式：{ "status": "info", "message": "..." }
+* 
+* @param message 消息文本
+* @param prefix 前缀（默认为空）
+*/
+function outputInfo(message, prefix = "") {
+	if (jsonMode$1) console.log(JSON.stringify({
+		status: "info",
+		message
+	}));
+	else {
+		const prefixText = prefix ? `[${colorize(prefix, "cyan")}] ` : "";
+		console.log(`${colorize("ℹ", "blue")} ${prefixText}${message}`);
+	}
+}
+/**
 * 输出动作信息（如"正在搜索..."）
 * 
 * 终端格式：→ [前缀] 消息（黄色）
@@ -776,6 +860,33 @@ async function searchYouTube(query, limit = 10) {
 	} catch (err) {
 		console.error(`YouTube 搜索失败：${err.message}`);
 		return [];
+	}
+}
+/**
+* 获取视频的实际音频流 URL（用于播放）
+* 
+* 参数说明：
+* - -f bestaudio：选择最佳音质
+* - -g --get-url：只输出下载 URL
+* - --no-download --no-warnings
+* 
+* @param url 视频 URL
+* @returns 音频流 URL，失败返回 null
+*/
+async function getAudioStreamUrl(url) {
+	const args = [
+		url,
+		"-f",
+		"bestaudio",
+		"-g",
+		"--get-url",
+		"--no-download",
+		"--no-warnings"
+	];
+	try {
+		return (await runYtdlp(args, 6e4)).trim().split("\n")[0] || null;
+	} catch (err) {
+		return null;
 	}
 }
 //#endregion
@@ -998,18 +1109,28 @@ async function playCommand(query, options) {
 			outputError("无法找到匹配的歌曲（评分过低）", ["请尝试更具体的搜索词"], "评分");
 			process.exit(1);
 		}
-		const best = pickBestSong(scored);
-		if (!best) {
+		const bestPick = pickBestSong(scored);
+		if (!bestPick) {
 			outputError("无法找到匹配的歌曲", [], "评分");
 			process.exit(1);
 		}
+		const best = bestPick.song;
+		outputAction("提取音频流 URL...", "播放");
+		const candidateUrl = best.id ? `https://www.youtube.com/watch?v=${best.id}` : best.webpage_url || best.url;
+		if (!candidateUrl) {
+			outputError("无法从搜索结果中获取视频标识", ["请尝试更具体的搜索词"], "播放");
+			process.exit(1);
+		}
+		const directUrl = await getAudioStreamUrl(candidateUrl);
+		const playbackUrl = directUrl || candidateUrl;
+		if (!directUrl) outputInfo("音频 URL 提取失败，使用 YouTube URL 播放（需要 mpv 支持 yt-dl hook）", "播放");
 		outputAction("正在启动 mpv...", "播放");
 		if (await mpvIsRunning()) {
 			outputAction("停止当前播放...", "播放");
 			await sendIpc({ command: ["stop"] });
 			await waitForMpvToStop();
 		}
-		startMpv([best.url]);
+		startMpv([playbackUrl]);
 		outputAction("等待播放...", "播放");
 		if (!await verifyPlayback(timeout)) {
 			outputError("播放失败（mpv 启动但无声音）", [], "播放");
@@ -1087,7 +1208,8 @@ async function statusCommand(options) {
 var program = new Command();
 program.name("music").description("播放、暂停、控制在线音乐").version("1.0.0");
 program.command("play [query..]", { isDefault: true }).description("播放歌曲（默认命令）").option("--artist", "艺人模式：播放指定艺人的歌曲", false).option("--count <n>", "艺人模式下的歌曲数量", parseInt, 10).option("-j, --json", "JSON 输出模式（供 Agent 解析）", false).option("--timeout <ms>", "超时时间（毫秒）", parseInt, DEFAULT_TIMEOUT).action((query, options) => {
-	const queryStr = query && query.length > 0 ? query.join(" ") : "";
+	const queryArr = Array.isArray(query) ? query : query ? [String(query)] : [];
+	const queryStr = queryArr.length > 0 ? queryArr.join(" ") : "";
 	if (!queryStr) {
 		outputError("请提供搜索关键词", ["用法: music play <歌曲名>"], "错误");
 		process.exit(1);

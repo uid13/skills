@@ -43,6 +43,11 @@ export interface YTVideoFull {
 }
 
 /**
+ * YouTube 视频信息（通用类型，可能是 flat-playlist 或 dump-json 的结果）
+ */
+export type YTVideoInfo = YTVideoFlat & YTVideoFull;
+
+/**
  * 歌曲播放信息（用于输出展示）
  */
 export interface SongInfo {

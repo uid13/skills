@@ -165,8 +165,9 @@ node <skill-dir>/scripts/dist/music.mjs control status
 ## 依赖要求
 
 - **Node.js** >= 22（运行时）
-- **yt-dlp**：YouTube 视频搜索和下载（必须）
-- **mpv**：媒体播放器（必须）
+- **yt-dlp**：YouTube 视频搜索和下载（必须，通过 mise 安装即可，无需额外安装 deno）
+- **mpv**：媒体播放器（必须，通过 mise 安装）
+- **Shell 兼容性**：技能内部自动强制使用 `pwsh`（PowerShell 7）或 `bash`（Git Bash）作为 shell，避免使用 `cmd`（因为 cmd 通常没有 mise 激活，可能导致 yt-dlp/mpv 命令不可用）
 
 如果缺少依赖，播放命令会输出：
 ```

@@ -29,6 +29,67 @@ import type { Platform, InstallHint } from './types.js';
  */
 export const IS_WINDOWS = process.platform === 'win32';
 
+// 缓存检测到的 Windows shell
+let detectedWindowsShell: string | undefined;
+
+/**
+ * 检测 Windows 系统下可用的 shell（优先 pwsh，其次 bash）
+ * 用于避免使用 cmd（cmd 没有 mise 激活，找不到 yt-dlp/mpv）
+ * 
+ * @returns shell 路径或名称（'pwsh' | 'bash' | 'cmd.exe）
+ */
+function detectWindowsShell(): string {
+  if (detectedWindowsShell !== undefined) {
+    return detectedWindowsShell;
+  }
+
+  // 优先检测 pwsh 是否在 PATH 里
+  if (process.env.PSModulePath?.includes('PowerShell\\7') || 
+      process.env.PSModulePath?.includes('PowerShell/7')) {
+    detectedWindowsShell = 'pwsh';
+    return detectedWindowsShell;
+  }
+
+  // 其次检测 bash（git bash）
+  if (process.env.GIT_BASH_PATH) {
+    detectedWindowsShell = process.env.GIT_BASH_PATH;
+    return detectedWindowsShell;
+  }
+
+  // 尝试通过执行 which/where 检测
+  try {
+    const result = require('child_process').spawnSync('where', ['pwsh'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 2000
+    });
+    if (result.status === 0 && result.stdout.includes('pwsh')) {
+      detectedWindowsShell = 'pwsh';
+      return detectedWindowsShell;
+    }
+  } catch {
+    // 继续尝试 bash
+  }
+
+  try {
+    const result = require('child_process').spawnSync('where', ['bash'], {
+      encoding: 'utf8',
+      windowsHide: true,
+      timeout: 2000
+    });
+    if (result.status === 0 && result.stdout.includes('bash')) {
+      detectedWindowsShell = 'bash';
+      return detectedWindowsShell;
+    }
+  } catch {
+    // fallback 到默认
+  }
+
+  // 都没找到，fallback 到 pwsh（会报错但明确提示）
+  detectedWindowsShell = 'pwsh';
+  return detectedWindowsShell;
+}
+
 /**
  * 不同系统下的依赖安装命令
  */
@@ -95,7 +156,27 @@ export async function exec(
       stdio: ['ignore', 'pipe', 'pipe'],
     };
 
-    const child = spawn(command, args, spawnOptions);
+    let actualCommand = command;
+    let actualArgs = args;
+
+    // Windows 强制使用 pwsh 或 bash，避免使用 cmd（cmd 没有 mise 激活）
+    if (IS_WINDOWS) {
+      const shell = detectWindowsShell();
+      if (shell === 'pwsh') {
+        // PowerShell: 用 & 调用语法，避免参数转义问题
+        const cmdString = `& "${command}" ${args.map(a => `"${a.replace(/"/g, '`"')}"`).join(' ')}`;
+        actualCommand = 'pwsh';
+        actualArgs = ['-NoProfile', '-Command', cmdString];
+      } else if (shell === 'bash') {
+        // Bash: 用 -c 参数传递完整命令
+        const cmdString = [command, ...args.map(a => `"${a.replace(/"/g, '\\"')}"`)].join(' ');
+        actualCommand = 'bash';
+        actualArgs = ['-c', cmdString];
+      }
+      // 其他情况保持原来的直接调用方式（但可能找不到 yt-dlp/mpv）
+    }
+
+    const child = spawn(actualCommand, actualArgs, spawnOptions);
 
     let stdout = '';
     let stderr = '';

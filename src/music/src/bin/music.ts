@@ -25,10 +25,10 @@
  */
 
 import { Command } from 'commander';
-import { setJsonMode, outputSuccess, outputError, outputAction, 
+import { setJsonMode, outputSuccess, outputError, outputAction, outputInfo, 
          outputSongInfo, outputSongList, outputControlResult } from '../lib/output.js';
 import { checkPlaybackDependencies, exitWithError } from '../lib/utils.js';
-import { searchYouTube } from '../lib/ytdl.js';
+import { searchYouTube, getAudioStreamUrl } from '../lib/ytdl.js';
 import { scoreAndRank, pickBestSong, isReliableMatch } from '../lib/scoring.js';
 import { startMpv, mpvIsRunning, sendIpc, verifyPlayback, getPlaybackStatus, 
          waitForMpvToStop } from '../lib/mpv.js';
@@ -83,15 +83,32 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
     }
 
     // 4. 选择最佳候选
-    const best = pickBestSong(scored);
-    if (!best) {
+    const bestPick = pickBestSong(scored);
+    if (!bestPick) {
       outputError('无法找到匹配的歌曲', [], '评分');
       process.exit(1);
     }
+    const best = bestPick.song;
 
-    // 5. 启动 mpv 播放
+    // 5. 提取直链（避免依赖 mpv 的 ytdl hook）
+    outputAction('提取音频流 URL...', '播放');
+    // 从搜索结果中提取视频 URL（优先 id，因为 id 总是有值）
+    const candidateUrl = best.id
+      ? `https://www.youtube.com/watch?v=${best.id}`
+      : (best.webpage_url || best.url);
+    if (!candidateUrl) {
+      outputError('无法从搜索结果中获取视频标识', ['请尝试更具体的搜索词'], '播放');
+      process.exit(1);
+    }
+    const directUrl = await getAudioStreamUrl(candidateUrl);
+    const playbackUrl = directUrl || candidateUrl;
+    if (!directUrl) {
+      outputInfo('音频 URL 提取失败，使用 YouTube URL 播放（需要 mpv 支持 yt-dl hook）', '播放');
+    }
+
+    // 6. 启动 mpv 播放
     outputAction('正在启动 mpv...', '播放');
-    
+
     // 检查是否已有 mpv 运行
     if (await mpvIsRunning()) {
       outputAction('停止当前播放...', '播放');
@@ -99,9 +116,9 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
       await waitForMpvToStop();
     }
 
-    startMpv([best.url]);
-    
-    // 6. 等待播放验证（最多 10 秒）
+    startMpv([playbackUrl]);
+
+    // 7. 等待播放验证（最多 10 秒）
     outputAction('等待播放...', '播放');
     const verified = await verifyPlayback(timeout);
 
@@ -223,8 +240,10 @@ program
   .option('--count <n>', '艺人模式下的歌曲数量', parseInt, 10)
   .option('-j, --json', 'JSON 输出模式（供 Agent 解析）', false)
   .option('--timeout <ms>', '超时时间（毫秒）', parseInt, DEFAULT_TIMEOUT)
-  .action((query: string[] | undefined, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number }) => {
-    const queryStr = query && query.length > 0 ? query.join(' ') : '';
+  .action((query: string[] | string | undefined, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number }) => {
+    // commander 在 isDefault:true + 变长参数 场景下，可能传入 string 或 array，统一处理
+    const queryArr = Array.isArray(query) ? query : (query ? [String(query)] : []);
+    const queryStr = queryArr.length > 0 ? queryArr.join(' ') : '';
     if (!queryStr) {
       outputError('请提供搜索关键词', ['用法: music play <歌曲名>'], '错误');
       process.exit(1);

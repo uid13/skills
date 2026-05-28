@@ -156,7 +156,7 @@ export async function getAudioStreamUrl(url: string): Promise<string | null> {
   ];
 
   try {
-    const output = await runYtdlp(args, 20_000);
+    const output = await runYtdlp(args, 60_000);
     const audioUrl = output.trim().split('\n')[0];
     return audioUrl || null;
   } catch (err: any) {
