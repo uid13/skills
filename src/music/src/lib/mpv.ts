@@ -149,7 +149,7 @@ export function startMpv(args: string[] = []): ChildProcess {
 
   mpvProcess = spawn('mpv', mpvArgs, {
     stdio: ['ignore', 'ignore', 'ignore'],
-    detached: IS_WINDOWS ? false : true, // Windows 不支持 detached: true
+    detached: true, // 跨平台都使用 detached，让 mpv 在父进程退出后继续运行
     windowsHide: true,
   });
 
@@ -163,8 +163,8 @@ export function startMpv(args: string[] = []): ChildProcess {
     mpvProcess = null;
   });
 
-  // detached 模式下 unref，让父进程可以退出
-  if (!IS_WINDOWS && mpvProcess.unref) {
+  // unref 让父进程可以退出（跨平台）
+  if (mpvProcess.unref) {
     mpvProcess.unref();
   }
 

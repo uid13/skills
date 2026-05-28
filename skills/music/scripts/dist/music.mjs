@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { createRequire } from "node:module";
 import { Command } from "commander";
+import * as fs from "node:fs";
+import { writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import * as net from "node:net";
-import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 //#region \0rolldown/runtime.js
@@ -453,7 +454,7 @@ function startMpv(args = []) {
 			"ignore",
 			"ignore"
 		],
-		detached: IS_WINDOWS ? false : true,
+		detached: true,
 		windowsHide: true
 	});
 	mpvProcess.on("error", (err) => {
@@ -463,7 +464,7 @@ function startMpv(args = []) {
 	mpvProcess.on("exit", (code, signal) => {
 		mpvProcess = null;
 	});
-	if (!IS_WINDOWS && mpvProcess.unref) mpvProcess.unref();
+	if (mpvProcess.unref) mpvProcess.unref();
 	return mpvProcess;
 }
 /**
@@ -569,14 +570,22 @@ async function verifyPlayback() {
 * 是否为 JSON 输出模式
 * （由主入口 music.ts 设置）
 */
-var jsonMode$1 = false;
+var jsonMode = false;
 /**
 * 切换 JSON 输出模式
 * 
 * @param enabled 是否启用 JSON 模式
 */
 function setJsonMode(enabled) {
-	jsonMode$1 = enabled;
+	jsonMode = enabled;
+}
+/**
+* 获取当前 JSON 输出模式状态
+* 
+* @returns 是否启用 JSON 模式
+*/
+function getJsonMode() {
+	return jsonMode;
 }
 /**
 * ANSI 颜色代码
@@ -657,7 +666,7 @@ function formatDuration(seconds) {
 * @param prefix 前缀（默认为空）
 */
 function outputSuccess(message, prefix = "") {
-	if (jsonMode$1) console.log(JSON.stringify({
+	if (jsonMode) console.log(JSON.stringify({
 		status: "success",
 		message
 	}));
@@ -677,7 +686,7 @@ function outputSuccess(message, prefix = "") {
 * @param prefix 前缀（默认为空）
 */
 function outputError(message, details = [], prefix = "") {
-	if (jsonMode$1) console.error(JSON.stringify({
+	if (jsonMode) console.error(JSON.stringify({
 		status: "error",
 		message,
 		details
@@ -700,7 +709,7 @@ function outputError(message, details = [], prefix = "") {
 * @param prefix 前缀（默认为空）
 */
 function outputInfo(message, prefix = "") {
-	if (jsonMode$1) console.log(JSON.stringify({
+	if (jsonMode) console.log(JSON.stringify({
 		status: "info",
 		message
 	}));
@@ -719,7 +728,7 @@ function outputInfo(message, prefix = "") {
 * @param prefix 前缀（默认为空）
 */
 function outputAction(message, prefix = "") {
-	if (jsonMode$1) console.log(JSON.stringify({ action: message }));
+	if (jsonMode) console.log(JSON.stringify({ action: message }));
 	else {
 		const prefixText = prefix ? `[${colorize(prefix, "cyan")}] ` : "";
 		console.log(`${colorize("→", "yellow")} ${prefixText}${message}`);
@@ -746,7 +755,7 @@ function outputSongInfo(info) {
 	const title = info.title || "未知标题";
 	const artist = info.artist || "未知艺人";
 	const duration = info.duration ? typeof info.duration === "string" ? info.duration : formatDuration(info.duration) : "--:--";
-	if (jsonMode$1) console.log(JSON.stringify({
+	if (jsonMode) console.log(JSON.stringify({
 		action: "play",
 		song: {
 			title,
@@ -774,7 +783,7 @@ function outputSongInfo(info) {
 function outputControlResult(action, status, label, extraInfo) {
 	const defaultLabel = LABELS[action] || action;
 	const displayLabel = label || defaultLabel;
-	if (jsonMode$1) {
+	if (jsonMode) {
 		const output = {
 			action,
 			status,
@@ -1085,8 +1094,8 @@ var DEFAULT_TIMEOUT = 3e4;
 * 3. 评分 + 排序
 * 4. 选择最佳候选
 * 5. 启动 mpv 播放
-* 6. 等待播放验证（最多 10 秒）
-* 7. 输出"正在播放"信息
+* 6. 立即返回（如果指定 --outfile，后台写入歌曲信息）
+* 7. Agent 稍后轮询 outfile 获取歌曲信息
 */
 async function playCommand(query, options) {
 	if (options.json) setJsonMode(true);
@@ -1129,6 +1138,99 @@ async function playCommand(query, options) {
 			outputAction("停止当前播放...", "播放");
 			await sendIpc({ command: ["stop"] });
 			await waitForMpvToStop();
+		}
+		if (options.outfile) {
+			const startedInfo = {
+				status: "started",
+				title: best.title || query,
+				artist: best.artist || best.uploader || "未知艺人",
+				duration: best.duration,
+				timestamp: (/* @__PURE__ */ new Date()).toISOString()
+			};
+			writeFileSync(options.outfile, JSON.stringify(startedInfo, null, 2));
+			outputSuccess("播放已启动（started），歌曲信息将稍后更新", "播放");
+			startMpv([playbackUrl]);
+			const verifyScript = `
+        const net = require('node:net');
+        const fs = require('node:fs');
+        
+        const IPC_PATH = process.platform === 'win32' 
+          ? '\\\\\\\\.\\\\pipe\\\\music-mpv-ipc' 
+          : '/tmp/music-mpv-ipc';
+        const OUTFILE = ${JSON.stringify(options.outfile)};
+        const SONG_INFO = ${JSON.stringify(startedInfo)};
+        
+        async function sendIpc(cmd) {
+          return new Promise((resolve) => {
+            const socket = net.createConnection(IPC_PATH);
+            const chunks = [];
+            let settled = false;
+            
+            socket.setTimeout(3000);
+            socket.on('connect', () => {
+              socket.write(JSON.stringify(cmd) + '\\n');
+            });
+            socket.on('data', (chunk) => {
+              chunks.push(chunk);
+              const data = Buffer.concat(chunks).toString('utf8').trim();
+              const firstLine = data.split(/\\r?\\n/).find(Boolean);
+              if (!firstLine) return;
+              try {
+                const response = JSON.parse(firstLine);
+                finish(response.error === 'success', response, response.error);
+              } catch (error) {
+                finish(false, null, 'Invalid mpv response: ' + firstLine);
+              }
+            });
+            socket.on('timeout', () => finish(false, null, 'IPC timeout'));
+            socket.on('error', (error) => finish(false, null, error.message));
+            socket.on('end', () => {
+              if (!settled) {
+                const data = Buffer.concat(chunks).toString('utf8').trim();
+                finish(Boolean(data), null, data ? null : 'No IPC response');
+              }
+            });
+            
+            function finish(ok, response, error) {
+              if (settled) return;
+              settled = true;
+              socket.destroy();
+              resolve({ ok, response, error });
+            }
+          });
+        }
+        
+        async function verify() {
+          const deadline = Date.now() + 15000;
+          while (Date.now() < deadline) {
+            const res = await sendIpc({ command: ['get_property', 'time-pos'] });
+            if (res.ok) return true;
+            await new Promise(r => setTimeout(r, 750));
+          }
+          return false;
+        }
+        
+        (async () => {
+          const ok = await verify();
+          const updatedInfo = {
+            ...SONG_INFO,
+            status: ok ? 'success' : 'failed',
+            timestamp: new Date().toISOString()
+          };
+          try {
+            fs.writeFileSync(OUTFILE, JSON.stringify(updatedInfo, null, 2));
+          } catch (err) {
+            // 写文件失败也忽略
+          }
+        })();
+      `;
+			const { spawn } = await import("node:child_process");
+			spawn(process.execPath, ["-e", verifyScript], {
+				detached: true,
+				stdio: "ignore",
+				windowsHide: true
+			}).unref();
+			process.exit(0);
 		}
 		startMpv([playbackUrl]);
 		outputAction("等待播放...", "播放");
@@ -1190,15 +1292,12 @@ async function statusCommand(options) {
 			outputError("mpv 未在运行", ["请先启动播放"], "状态检查");
 			process.exit(1);
 		}
-		const status = await getPlaybackStatus();
-		if (jsonMode) console.log(JSON.stringify({
+		const state = await getPlaybackStatus();
+		if (getJsonMode()) console.log(JSON.stringify({
 			status: "ok",
-			...status
-		}));
-		else {
-			outputSuccess(`播放状态: ${status.state === "playing" ? "播放中" : "已暂停"}`, "状态");
-			if (status.current && status.duration) console.log(`  进度: ${status.current} / ${status.duration}`);
-		}
+			state: state || "unknown"
+		}, null, 2));
+		else outputSuccess(`播放状态: ${state === "playing" ? "播放中" : state === "paused" ? "已暂停" : "未知"}`, "状态");
 		process.exit(0);
 	} catch (err) {
 		outputError(err.message || "未知错误", [], "错误");
@@ -1207,7 +1306,7 @@ async function statusCommand(options) {
 }
 var program = new Command();
 program.name("music").description("播放、暂停、控制在线音乐").version("1.0.0");
-program.command("play [query..]", { isDefault: true }).description("播放歌曲（默认命令）").option("--artist", "艺人模式：播放指定艺人的歌曲", false).option("--count <n>", "艺人模式下的歌曲数量", parseInt, 10).option("-j, --json", "JSON 输出模式（供 Agent 解析）", false).option("--timeout <ms>", "超时时间（毫秒）", parseInt, DEFAULT_TIMEOUT).action((query, options) => {
+program.command("play [query..]", { isDefault: true }).description("播放歌曲（默认命令）").option("--artist", "艺人模式：播放指定艺人的歌曲", false).option("--count <n>", "艺人模式下的歌曲数量", parseInt, 10).option("-j, --json", "JSON 输出模式（供 Agent 解析）", false).option("--timeout <ms>", "超时时间（毫秒）", parseInt, DEFAULT_TIMEOUT).option("--outfile <path>", "将歌曲信息写入文件（异步模式，不阻塞）").action((query, options) => {
 	const queryArr = Array.isArray(query) ? query : query ? [String(query)] : [];
 	const queryStr = queryArr.length > 0 ? queryArr.join(" ") : "";
 	if (!queryStr) {

@@ -81,13 +81,52 @@ node <skill-dir>/scripts/dist/music.mjs play "歌手名" --artist --count 5
 | `--timeout <ms>` | 超时时间（毫秒） | 30000 |
 | `--count <n>` | 艺人模式下的歌曲数量 | 10 |
 | `--artist` | 艺人模式（播放指定艺人的多首歌曲） | 关闭 |
+| `--outfile <path>` | 将歌曲信息异步写入文件（不阻塞命令） | - |
 | `--help` | 显示帮助信息 | - |
 | `--version` | 显示版本号 | - |
+
+### 异步模式（推荐 Agent 使用）
+
+使用 `--outfile` 参数可以让播放命令**立即返回**，歌曲信息异步写入指定文件：
+
+```bash
+# 1. 启动播放（命令立即返回，不阻塞）
+node <skill-dir>/scripts/dist/music.mjs play "歌曲名" --outfile /tmp/music_play.json
+
+# 2. agent 立即响应用户："正在启动播放..."
+# 3. 等待 1-2 秒后读取文件，获取歌曲信息
+node -e "const fs=require('fs'); console.log(fs.readFileSync('/tmp/music_play.json','utf-8'))"
+
+# 4. 转述歌曲信息给用户："正在播放：Numb - Linkin Park (3:45)"
+```
+
+**outfile 文件格式**：
+```json
+{
+  "status": "started" | "success" | "failed",
+  "title": "Numb",
+  "artist": "Linkin Park",
+  "duration": 225,
+  "timestamp": "2026-05-29T00:00:00.000Z"
+}
+```
+
+**状态流转**：
+- `started`：播放已启动，歌曲信息可用（立即写入）
+- `success`：mpv 验证成功，音频流正常播放（1-2 秒后更新）
+- `failed`：mpv 启动失败或音频流无法播放（1-2 秒后更新）
+
+**推荐流程**：
+1. 启动播放命令，输出 "started" 状态
+2. Agent 立即告知用户："播放已启动..."
+3. 后台等待 1-2 秒，读取 outfile
+4. 如果状态为 "success"，补充歌曲信息给用户
+5. 如果状态为 "failed"，提示用户播放失败
 
 ### 示例
 
 ```bash
-# 播放单曲
+# 播放单曲（同步模式，阻塞等待播放验证）
 node <skill-dir>/scripts/dist/music.mjs play "Numb"
 node <skill-dir>/scripts/dist/music.mjs play "周杰伦 晴天"
 node <skill-dir>/scripts/dist/music.mjs play "适合写代码的英文歌"
@@ -98,6 +137,11 @@ node <skill-dir>/scripts/dist/music.mjs play "周杰伦" --artist --count 5
 
 # JSON 输出模式
 node <skill-dir>/scripts/dist/music.mjs play "Numb" --json
+
+# 异步模式（推荐，不阻塞 agent）
+node <skill-dir>/scripts/dist/music.mjs play "Numb" --outfile /tmp/music.json
+# → 命令立即返回，写入 "started" 状态
+# → 1-2 秒后更新为 "success" 或 "failed"
 ```
 
 ### 输出格式

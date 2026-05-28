@@ -33,6 +33,15 @@ export function setJsonMode(enabled: boolean): void {
 }
 
 /**
+ * 获取当前 JSON 输出模式状态
+ * 
+ * @returns 是否启用 JSON 模式
+ */
+export function getJsonMode(): boolean {
+  return jsonMode;
+}
+
+/**
  * ANSI 颜色代码
  */
 const ANSI_COLORS = {

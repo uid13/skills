@@ -25,7 +25,8 @@
  */
 
 import { Command } from 'commander';
-import { setJsonMode, outputSuccess, outputError, outputAction, outputInfo, 
+import { writeFileSync } from 'node:fs';
+import { setJsonMode, getJsonMode, outputSuccess, outputError, outputAction, outputInfo, 
          outputSongInfo, outputSongList, outputControlResult } from '../lib/output.js';
 import { checkPlaybackDependencies, exitWithError } from '../lib/utils.js';
 import { searchYouTube, getAudioStreamUrl } from '../lib/ytdl.js';
@@ -47,10 +48,10 @@ const DEFAULT_TIMEOUT = 30_000;
  * 3. 评分 + 排序
  * 4. 选择最佳候选
  * 5. 启动 mpv 播放
- * 6. 等待播放验证（最多 10 秒）
- * 7. 输出"正在播放"信息
+ * 6. 立即返回（如果指定 --outfile，后台写入歌曲信息）
+ * 7. Agent 稍后轮询 outfile 获取歌曲信息
  */
-async function playCommand(query: string, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number }): Promise<void> {
+async function playCommand(query: string, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number; outfile?: string }): Promise<void> {
   if (options.json) setJsonMode(true);
 
   const timeout = options.timeout || DEFAULT_TIMEOUT;
@@ -92,7 +93,6 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
 
     // 5. 提取直链（避免依赖 mpv 的 ytdl hook）
     outputAction('提取音频流 URL...', '播放');
-    // 从搜索结果中提取视频 URL（优先 id，因为 id 总是有值）
     const candidateUrl = best.id
       ? `https://www.youtube.com/watch?v=${best.id}`
       : (best.webpage_url || best.url);
@@ -108,7 +108,7 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
 
     // 6. 启动 mpv 播放
     outputAction('正在启动 mpv...', '播放');
-
+    
     // 检查是否已有 mpv 运行
     if (await mpvIsRunning()) {
       outputAction('停止当前播放...', '播放');
@@ -116,9 +116,112 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
       await waitForMpvToStop();
     }
 
-    startMpv([playbackUrl]);
+    // 7. 如果指定了 outfile，立即写入 started 状态并启动播放
+    if (options.outfile) {
+      const startedInfo = {
+        status: 'started',
+        title: best.title || query,
+        artist: best.artist || best.uploader || '未知艺人',
+        duration: best.duration,
+        timestamp: new Date().toISOString()
+      };
+      writeFileSync(options.outfile, JSON.stringify(startedInfo, null, 2));
+      outputSuccess('播放已启动（started），歌曲信息将稍后更新', '播放');
 
-    // 7. 等待播放验证（最多 10 秒）
+      // 启动 mpv
+      startMpv([playbackUrl]);
+
+      // 启动 detached 子进程后台验证并更新状态
+      const verifyScript = `
+        const net = require('node:net');
+        const fs = require('node:fs');
+        
+        const IPC_PATH = process.platform === 'win32' 
+          ? '\\\\\\\\.\\\\pipe\\\\music-mpv-ipc' 
+          : '/tmp/music-mpv-ipc';
+        const OUTFILE = ${JSON.stringify(options.outfile)};
+        const SONG_INFO = ${JSON.stringify(startedInfo)};
+        
+        async function sendIpc(cmd) {
+          return new Promise((resolve) => {
+            const socket = net.createConnection(IPC_PATH);
+            const chunks = [];
+            let settled = false;
+            
+            socket.setTimeout(3000);
+            socket.on('connect', () => {
+              socket.write(JSON.stringify(cmd) + '\\n');
+            });
+            socket.on('data', (chunk) => {
+              chunks.push(chunk);
+              const data = Buffer.concat(chunks).toString('utf8').trim();
+              const firstLine = data.split(/\\r?\\n/).find(Boolean);
+              if (!firstLine) return;
+              try {
+                const response = JSON.parse(firstLine);
+                finish(response.error === 'success', response, response.error);
+              } catch (error) {
+                finish(false, null, 'Invalid mpv response: ' + firstLine);
+              }
+            });
+            socket.on('timeout', () => finish(false, null, 'IPC timeout'));
+            socket.on('error', (error) => finish(false, null, error.message));
+            socket.on('end', () => {
+              if (!settled) {
+                const data = Buffer.concat(chunks).toString('utf8').trim();
+                finish(Boolean(data), null, data ? null : 'No IPC response');
+              }
+            });
+            
+            function finish(ok, response, error) {
+              if (settled) return;
+              settled = true;
+              socket.destroy();
+              resolve({ ok, response, error });
+            }
+          });
+        }
+        
+        async function verify() {
+          const deadline = Date.now() + 15000;
+          while (Date.now() < deadline) {
+            const res = await sendIpc({ command: ['get_property', 'time-pos'] });
+            if (res.ok) return true;
+            await new Promise(r => setTimeout(r, 750));
+          }
+          return false;
+        }
+        
+        (async () => {
+          const ok = await verify();
+          const updatedInfo = {
+            ...SONG_INFO,
+            status: ok ? 'success' : 'failed',
+            timestamp: new Date().toISOString()
+          };
+          try {
+            fs.writeFileSync(OUTFILE, JSON.stringify(updatedInfo, null, 2));
+          } catch (err) {
+            // 写文件失败也忽略
+          }
+        })();
+      `;
+      
+      // 启动独立子进程（detached: true 让它在父进程退出后继续运行）
+      const { spawn } = await import('node:child_process');
+      const child = spawn(process.execPath, ['-e', verifyScript], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      child.unref();
+
+      // 主进程立即返回
+      process.exit(0);
+    }
+
+    // 8. 如果没有 outfile，同步启动并等待验证（旧行为）
+    startMpv([playbackUrl]);
     outputAction('等待播放...', '播放');
     const verified = await verifyPlayback(timeout);
 
@@ -127,14 +230,13 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
       process.exit(1);
     }
 
-    // 7. 输出"正在播放"信息
+    // 9. 输出"正在播放"信息
     outputSongInfo({
       title: best.title || query,
       artist: best.artist || best.uploader || '未知艺人',
       duration: best.duration,
     });
 
-    // 非 best match 时（即 best 是 fallback），给出警告
     if (!isReliableMatch(best)) {
       outputInfo('当前匹配度较低，可能不是最相关的歌曲', '提示');
     }
@@ -199,19 +301,17 @@ async function statusCommand(options: { json?: boolean }): Promise<void> {
       process.exit(1);
     }
 
-    // 获取状态
-    const status = await getPlaybackStatus();
+    // 获取播放状态（'playing' 或 'paused'）
+    const state = await getPlaybackStatus();
     
-    if (jsonMode) {
+    if (getJsonMode()) {
       console.log(JSON.stringify({
         status: 'ok',
-        ...status,
-      }));
+        state: state || 'unknown',
+      }, null, 2));
     } else {
-      outputSuccess(`播放状态: ${status.state === 'playing' ? '播放中' : '已暂停'}`, '状态');
-      if (status.current && status.duration) {
-        console.log(`  进度: ${status.current} / ${status.duration}`);
-      }
+      const displayState = state === 'playing' ? '播放中' : (state === 'paused' ? '已暂停' : '未知');
+      outputSuccess(`播放状态: ${displayState}`, '状态');
     }
 
     process.exit(0);
@@ -240,7 +340,8 @@ program
   .option('--count <n>', '艺人模式下的歌曲数量', parseInt, 10)
   .option('-j, --json', 'JSON 输出模式（供 Agent 解析）', false)
   .option('--timeout <ms>', '超时时间（毫秒）', parseInt, DEFAULT_TIMEOUT)
-  .action((query: string[] | string | undefined, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number }) => {
+  .option('--outfile <path>', '将歌曲信息写入文件（异步模式，不阻塞）')
+  .action((query: string[] | string | undefined, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number; outfile?: string }) => {
     // commander 在 isDefault:true + 变长参数 场景下，可能传入 string 或 array，统一处理
     const queryArr = Array.isArray(query) ? query : (query ? [String(query)] : []);
     const queryStr = queryArr.length > 0 ? queryArr.join(' ') : '';
