@@ -100,6 +100,12 @@ node -e "const fs=require('fs'); console.log(fs.readFileSync('/tmp/music_play.js
 # 4. 转述歌曲信息给用户："正在播放：Numb - Linkin Park (3:45)"
 ```
 
+**路径兼容性说明**：
+- `--outfile` 路径支持跨平台自动映射
+- Windows 下 `/tmp/xxx` 会自动转换为系统临时目录（如 `C:\Users\xxx\AppData\Local\Temp\xxx`）
+- 推荐使用 `/tmp/xxx` 格式，保证 Git Bash / PowerShell / cmd 都能工作
+- 也可以直接使用 Windows 绝对路径（如 `C:\temp\music.json`）
+
 **outfile 文件格式**：
 ```json
 {

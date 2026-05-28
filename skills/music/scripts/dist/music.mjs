@@ -3,10 +3,12 @@ import { createRequire } from "node:module";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import { writeFileSync } from "node:fs";
+import * as os from "node:os";
+import { tmpdir } from "node:os";
+import * as path from "node:path";
+import { resolve } from "node:path";
 import { spawn } from "node:child_process";
 import * as net from "node:net";
-import * as os from "node:os";
-import * as path from "node:path";
 //#region \0rolldown/runtime.js
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
 //#endregion
@@ -1082,6 +1084,23 @@ function isReliableMatch(best) {
 * - --help             显示帮助
 */
 /**
+* 规范化文件路径（跨平台 temp 目录映射）
+* 
+* Git Bash 中 `/tmp` 会自动映射到系统 temp 目录，
+* 但 PowerShell / cmd + Node.js 不会自动映射，
+* 需要手动将 `/tmp` 替换为 os.tmpdir()。
+* 
+* @param filePath 原始路径
+* @returns 规范化后的绝对路径
+*/
+function normalizeOutfile(filePath) {
+	if (IS_WINDOWS) {
+		if (filePath.startsWith("/tmp/") || filePath.startsWith("/tmp\\")) return resolve(tmpdir(), filePath.slice(5));
+		if (filePath === "/tmp") return tmpdir();
+	}
+	return filePath;
+}
+/**
 * 默认超时时间（毫秒）
 */
 var DEFAULT_TIMEOUT = 3e4;
@@ -1140,6 +1159,7 @@ async function playCommand(query, options) {
 			await waitForMpvToStop();
 		}
 		if (options.outfile) {
+			const normalizedOutfile = normalizeOutfile(options.outfile);
 			const startedInfo = {
 				status: "started",
 				title: best.title || query,
@@ -1147,7 +1167,7 @@ async function playCommand(query, options) {
 				duration: best.duration,
 				timestamp: (/* @__PURE__ */ new Date()).toISOString()
 			};
-			writeFileSync(options.outfile, JSON.stringify(startedInfo, null, 2));
+			writeFileSync(normalizedOutfile, JSON.stringify(startedInfo, null, 2));
 			outputSuccess("播放已启动（started），歌曲信息将稍后更新", "播放");
 			startMpv([playbackUrl]);
 			const verifyScript = `
@@ -1157,7 +1177,7 @@ async function playCommand(query, options) {
         const IPC_PATH = process.platform === 'win32' 
           ? '\\\\\\\\.\\\\pipe\\\\music-mpv-ipc' 
           : '/tmp/music-mpv-ipc';
-        const OUTFILE = ${JSON.stringify(options.outfile)};
+        const OUTFILE = ${JSON.stringify(normalizedOutfile)};
         const SONG_INFO = ${JSON.stringify(startedInfo)};
         
         async function sendIpc(cmd) {

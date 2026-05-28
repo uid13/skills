@@ -26,13 +26,38 @@
 
 import { Command } from 'commander';
 import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve, sep } from 'node:path';
 import { setJsonMode, getJsonMode, outputSuccess, outputError, outputAction, outputInfo, 
          outputSongInfo, outputSongList, outputControlResult } from '../lib/output.js';
-import { checkPlaybackDependencies, exitWithError } from '../lib/utils.js';
+import { checkPlaybackDependencies, exitWithError, IS_WINDOWS } from '../lib/utils.js';
 import { searchYouTube, getAudioStreamUrl } from '../lib/ytdl.js';
 import { scoreAndRank, pickBestSong, isReliableMatch } from '../lib/scoring.js';
 import { startMpv, mpvIsRunning, sendIpc, verifyPlayback, getPlaybackStatus, 
          waitForMpvToStop } from '../lib/mpv.js';
+
+/**
+ * 规范化文件路径（跨平台 temp 目录映射）
+ * 
+ * Git Bash 中 `/tmp` 会自动映射到系统 temp 目录，
+ * 但 PowerShell / cmd + Node.js 不会自动映射，
+ * 需要手动将 `/tmp` 替换为 os.tmpdir()。
+ * 
+ * @param filePath 原始路径
+ * @returns 规范化后的绝对路径
+ */
+function normalizeOutfile(filePath: string): string {
+  if (IS_WINDOWS) {
+    // Windows: /tmp/xxx → C:\Users\xxx\AppData\Local\Temp\xxx
+    if (filePath.startsWith('/tmp/') || filePath.startsWith('/tmp\\')) {
+      return resolve(tmpdir(), filePath.slice(5));
+    }
+    if (filePath === '/tmp') {
+      return tmpdir();
+    }
+  }
+  return filePath;
+}
 
 /**
  * 默认超时时间（毫秒）
@@ -118,6 +143,7 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
 
     // 7. 如果指定了 outfile，立即写入 started 状态并启动播放
     if (options.outfile) {
+      const normalizedOutfile = normalizeOutfile(options.outfile);
       const startedInfo = {
         status: 'started',
         title: best.title || query,
@@ -125,7 +151,7 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
         duration: best.duration,
         timestamp: new Date().toISOString()
       };
-      writeFileSync(options.outfile, JSON.stringify(startedInfo, null, 2));
+      writeFileSync(normalizedOutfile, JSON.stringify(startedInfo, null, 2));
       outputSuccess('播放已启动（started），歌曲信息将稍后更新', '播放');
 
       // 启动 mpv
@@ -139,7 +165,7 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
         const IPC_PATH = process.platform === 'win32' 
           ? '\\\\\\\\.\\\\pipe\\\\music-mpv-ipc' 
           : '/tmp/music-mpv-ipc';
-        const OUTFILE = ${JSON.stringify(options.outfile)};
+        const OUTFILE = ${JSON.stringify(normalizedOutfile)};
         const SONG_INFO = ${JSON.stringify(startedInfo)};
         
         async function sendIpc(cmd) {
