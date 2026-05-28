@@ -1,0 +1,49 @@
+# ===== 依赖目录 =====
+node_modules/
+
+# ===== 构建工具 =====
+/.turbo
+/.next
+out/
+.cache/
+
+# ===== IDE / 编辑器 =====
+.idea/
+*.swp
+*.swo
+*~
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# 保留用户级编辑器配置
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+
+# ===== 日志与临时文件 =====
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+npm/
+
+# ===== 测试覆盖率 =====
+coverage/
+.nyc_output/
+
+# ===== 环境变量 =====
+.env
+.env.local
+.env.*.local
+
+# ===== Vite 内部目录（仅根目录不忽略子目录） =====
+/.vite-temp/
+
+# ===== 说明 =====
+# skills/*/scripts/dist/ 目录是编译产物，需要提交到 git（供用户零安装使用），因此**不要**在这里忽略
+# .gitignore 只忽略开发和构建时产生的文件
+# 编译产物请保留 source map 以便调试

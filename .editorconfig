@@ -1,0 +1,23 @@
+# 编辑器基础配置，确保不同开发者的编辑器行为一致
+# 详见：https://editorconfig.org
+
+root = true
+
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.md]
+# Markdown 文件保留尾部空格（常用于强制换行）
+trim_trailing_whitespace = false
+
+[*.{js,ts,mjs,cjs}]
+indent_size = 2
+
+[Makefile]
+# Makefile 必须使用 Tab
+indent_style = tab

@@ -1,0 +1,35 @@
+{
+  "name": "uid13-skills",
+  "version": "1.0.0",
+  "private": true,
+  "description": "uid13 的 AI Agent 技能集合（Monorepo 工程化）",
+  "type": "module",
+  "workspaces": [
+    "src/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "agent-skills",
+    "skills.sh",
+    "opencode",
+    "claude-code",
+    "codex",
+    "ai-agentic"
+  ],
+  "author": "uid13",
+  "license": "MIT"
+}
