@@ -57,20 +57,21 @@ nohup node <skill-dir>/scripts/dist/music.mjs play "<搜索词>" --outfile /tmp/
 
 ```
 1. 构造搜索词（见"搜索策略"）
-2. 执行 nohup 命令
-3. 立即响应用户："正在启动播放..."
-4. 等待 10-15 秒
-5. 读取 outfile 文件
-6. 转述歌曲信息 + 补充简介
+2. 清理旧的 outfile 文件
+3. 执行 nohup 命令
+4. 立即响应用户："正在启动播放..."
+5. 等待 12 秒
+6. 读取 /tmp/music_out.json
+7. 转述歌曲信息 + 补充简介
 ```
 
 ### 读取 outfile
 
 ```bash
-sleep 12 && cat /tmp/music_out.json
+rm -f /tmp/music_out.json && sleep 12 && cat /tmp/music_out.json
 ```
 
-如果文件不存在或为空，再等 5-10 秒重读；30 秒后仍未变化视为失败。
+路径固定为 `/tmp/music_out.json`（Git Bash 会自动映射到系统临时目录），不要自行转换路径。
 
 ### outfile 格式
 
