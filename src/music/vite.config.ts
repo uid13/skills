@@ -4,17 +4,13 @@ import { resolve } from 'node:path';
 /**
  * Vite 8 + Rolldown 构建配置（music 技能）
  * 
- * 单入口模式：所有子命令通过 commander 在 music.ts 内分发
- * 
- * 关键配置：
- * - ssr: true（避免 node: 模块被外部化警告）
- * - lib 模式，ESM 格式输出
- * - rolldownOptions 外部化所有 node: 内置模块
- * - ssrNoExternal: commander 需要打包（不能外部化）
+ * - ssr: true（externalize node: 内置模块）
+ * - commander 保持外部化（用户环境需有 commander）
  * - 输出到 skills/music/scripts/dist/
  */
 export default defineConfig({
   build: {
+    ssr: true,
     lib: {
       entry: resolve(__dirname, 'src/bin/music.ts'),
       formats: ['es'],

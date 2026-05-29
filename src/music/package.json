@@ -5,8 +5,8 @@
   "description": "music 技能的源码项目（Vite 8 + Rolldown + TypeScript，编译到 skills/）",
   "type": "module",
   "scripts": {
-    "build": "vite build && node postbuild.mjs",
-    "dev": "vite build --watch"
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
   },
   "engines": {
     "node": ">=22"
@@ -15,7 +15,7 @@
     "commander": "^12.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.4.0",
-    "vite": "^8.0.0"
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.0"
   }
 }
