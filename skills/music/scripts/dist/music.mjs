@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { createRequire } from "node:module";
 import { Command } from "commander";
 import * as fs from "node:fs";
 import { writeFileSync } from "node:fs";
@@ -9,9 +8,6 @@ import * as path from "node:path";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
 import * as net from "node:net";
-//#region \0rolldown/runtime.js
-var __require = /* @__PURE__ */ createRequire(import.meta.url);
-//#endregion
 //#region src/lib/utils.ts
 /**
 * music 技能工具函数库
@@ -32,48 +28,6 @@ var __require = /* @__PURE__ */ createRequire(import.meta.url);
 * 当前运行平台是否为 Windows
 */
 var IS_WINDOWS = process.platform === "win32";
-var detectedWindowsShell;
-/**
-* 检测 Windows 系统下可用的 shell（优先 pwsh，其次 bash）
-* 用于避免使用 cmd（cmd 没有 mise 激活，找不到 yt-dlp/mpv）
-* 
-* @returns shell 路径或名称（'pwsh' | 'bash' | 'cmd.exe）
-*/
-function detectWindowsShell() {
-	if (detectedWindowsShell !== void 0) return detectedWindowsShell;
-	if (process.env.PSModulePath?.includes("PowerShell\\7") || process.env.PSModulePath?.includes("PowerShell/7")) {
-		detectedWindowsShell = "pwsh";
-		return detectedWindowsShell;
-	}
-	if (process.env.GIT_BASH_PATH) {
-		detectedWindowsShell = process.env.GIT_BASH_PATH;
-		return detectedWindowsShell;
-	}
-	try {
-		const result = __require("child_process").spawnSync("where", ["pwsh"], {
-			encoding: "utf8",
-			windowsHide: true,
-			timeout: 2e3
-		});
-		if (result.status === 0 && result.stdout.includes("pwsh")) {
-			detectedWindowsShell = "pwsh";
-			return detectedWindowsShell;
-		}
-	} catch {}
-	try {
-		const result = __require("child_process").spawnSync("where", ["bash"], {
-			encoding: "utf8",
-			windowsHide: true,
-			timeout: 2e3
-		});
-		if (result.status === 0 && result.stdout.includes("bash")) {
-			detectedWindowsShell = "bash";
-			return detectedWindowsShell;
-		}
-	} catch {}
-	detectedWindowsShell = "pwsh";
-	return detectedWindowsShell;
-}
 /**
 * 不同系统下的依赖安装命令
 */
@@ -97,7 +51,7 @@ var INSTALL_COMMANDS = {
 * @returns 执行结果（status、stdout、stderr）
 */
 async function exec(command, args, options = {}) {
-	const { timeout = 3e4, maxBuffer = 20 * 1024 * 1024, encoding = "utf8", windowsHide = true } = options;
+	const { timeout = 3e4, maxBuffer = 20 * 1024 * 1024, encoding = "utf8", windowsHide = true, noShell = false } = options;
 	return new Promise((resolve) => {
 		const spawnOptions = {
 			encoding,
@@ -110,21 +64,10 @@ async function exec(command, args, options = {}) {
 		};
 		let actualCommand = command;
 		let actualArgs = args;
-		if (IS_WINDOWS) {
-			const shell = detectWindowsShell();
-			if (shell === "pwsh") {
-				const cmdString = `& "${command}" ${args.map((a) => `"${a.replace(/"/g, "`\"")}"`).join(" ")}`;
-				actualCommand = "pwsh";
-				actualArgs = [
-					"-NoProfile",
-					"-Command",
-					cmdString
-				];
-			} else if (shell === "bash") {
-				const cmdString = [command, ...args.map((a) => `"${a.replace(/"/g, "\\\"")}"`)].join(" ");
-				actualCommand = "bash";
-				actualArgs = ["-c", cmdString];
-			}
+		if (IS_WINDOWS && !noShell) {
+			const cmdString = [command, ...args.map((a) => `"${a.replace(/"/g, "\\\"")}"`)].join(" ");
+			actualCommand = "bash";
+			actualArgs = ["-c", cmdString];
 		}
 		const child = spawn(actualCommand, actualArgs, spawnOptions);
 		let stdout = "";
@@ -188,7 +131,10 @@ async function exec(command, args, options = {}) {
 * @returns 是否可用
 */
 async function commandVersionWorks(command) {
-	const result = await exec(command, ["--version"], { timeout: 8e3 });
+	const result = await exec(command, ["--version"], {
+		timeout: 8e3,
+		noShell: true
+	});
 	if (result.status !== 0) return false;
 	return (result.stdout + result.stderr).trim().length > 0;
 }
@@ -214,6 +160,34 @@ function windowsPathCandidates(command) {
 	return [...new Set(candidates)];
 }
 /**
+* 查找 mise 安装的真实可执行文件（绕过 shim）
+* mise shim 是 shell 脚本，直接执行会创建窗口
+* 
+* @param command 命令名（如 'yt-dlp'、'mpv'）
+* @returns 真实 exe 路径，找不到返回空字符串
+*/
+function findMiseRealExecutable(command) {
+	const miseInstalls = path.join(os.homedir(), ".mise", "data", "installs");
+	const miseRoot = process.env.MISE_DATA_DIR || miseInstalls;
+	const installsDir = path.join(miseRoot, "installs");
+	if (!fs.existsSync(installsDir)) return "";
+	try {
+		for (const entry of fs.readdirSync(installsDir)) {
+			if (!entry.toLowerCase().includes(command.toLowerCase())) continue;
+			const entryDir = path.join(installsDir, entry);
+			if (!fs.statSync(entryDir).isDirectory()) continue;
+			for (const ver of fs.readdirSync(entryDir)) {
+				const verDir = path.join(entryDir, ver);
+				if (!fs.statSync(verDir).isDirectory()) continue;
+				const exeName = IS_WINDOWS ? `${command}.exe` : command;
+				const exePath = path.join(verDir, exeName);
+				if (fs.existsSync(exePath)) return exePath;
+			}
+		}
+	} catch {}
+	return "";
+}
+/**
 * 使用 where.exe / command -v 查找命令路径
 * - Windows：where.exe
 * - Linux/macOS：sh -lc 'command -v <name>'
@@ -223,7 +197,10 @@ function windowsPathCandidates(command) {
 */
 async function locatorCandidates(command) {
 	const locator = IS_WINDOWS ? ["where.exe", [command]] : ["sh", ["-lc", `command -v ${command}`]];
-	const result = await exec(locator[0], locator[1], { timeout: 5e3 });
+	const result = await exec(locator[0], locator[1], {
+		timeout: 5e3,
+		noShell: true
+	});
 	if (result.status !== 0) return [];
 	return result.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
@@ -273,10 +250,17 @@ loadPersistentCache();
 async function resolveExecutable(command) {
 	if (resolveCache.has(command)) {
 		const cached = resolveCache.get(command);
-		if ((await exec(cached, ["--version"], { timeout: 3e3 })).status === 0) return cached;
+		if ((await exec(cached, ["--version"], {
+			timeout: 3e3,
+			noShell: true
+		})).status === 0) return cached;
 		resolveCache.delete(command);
 	}
 	let resolved = "";
+	if (IS_WINDOWS && !resolved) {
+		const misePath = findMiseRealExecutable(command);
+		if (misePath && await commandVersionWorks(misePath)) resolved = misePath;
+	}
 	if (await commandVersionWorks(command)) resolved = command;
 	else {
 		const locatorList = await locatorCandidates(command);
@@ -425,7 +409,13 @@ var mpvProcess = null;
 * @returns 是否运行
 */
 async function mpvIsRunning() {
-	const result = IS_WINDOWS ? await exec("tasklist", ["/FI", "IMAGENAME eq mpv.exe"], { timeout: 3e3 }) : await exec("pgrep", ["-x", "mpv"], { timeout: 3e3 });
+	const result = IS_WINDOWS ? await exec("tasklist", ["/FI", "IMAGENAME eq mpv.exe"], {
+		timeout: 3e3,
+		noShell: true
+	}) : await exec("pgrep", ["-x", "mpv"], {
+		timeout: 3e3,
+		noShell: true
+	});
 	if (IS_WINDOWS) return /mpv\.exe/i.test(result.stdout);
 	return result.status === 0;
 }
@@ -439,8 +429,14 @@ async function killMpv() {
 		"/F",
 		"/IM",
 		"mpv.exe"
-	], { timeout: 5e3 });
-	else await exec("pkill", ["-x", "mpv"], { timeout: 5e3 });
+	], {
+		timeout: 5e3,
+		noShell: true
+	});
+	else await exec("pkill", ["-x", "mpv"], {
+		timeout: 5e3,
+		noShell: true
+	});
 	mpvProcess = null;
 }
 /**
@@ -571,7 +567,7 @@ async function getPlaybackStatus() {
 * @returns 是否播放成功
 */
 async function verifyPlayback() {
-	for (let i = 0; i < 10; i++) {
+	for (let i = 0; i < 30; i++) {
 		await sleep(500);
 		const result = await sendIpc({ command: ["get_property", "time-pos"] });
 		if (!result.ok || !result.response) continue;
@@ -663,16 +659,6 @@ function colorize(text, color) {
 	return `${ANSI_COLORS[color]}${text}${ANSI_COLORS.reset}`;
 }
 /**
-* 格式化时长（秒 → mm:ss）
-* 
-* @param seconds 秒数（可能为小数或 null）
-* @returns 格式化后的字符串（如 "3:45"）
-*/
-function formatDuration(seconds) {
-	if (seconds === void 0 || seconds === null || seconds < 0) return "--:--";
-	return `${Math.floor(seconds / 60)}:${Math.floor(seconds % 60).toString().padStart(2, "0")}`;
-}
-/**
 * 输出成功信息
 * 
 * 终端格式：✓ [前缀] 消息（绿色）
@@ -762,7 +748,7 @@ function outputAction(message, prefix = "") {
 * 
 * JSON 格式：
 * ```json
-* { "action": "play", "song": { "title": "...", "artist": "...", "duration": "3:45" } }
+* { "action": "play", "song": { "title": "...", "artist": "..." } }
 * ```
 * 
 * @param info 歌曲信息（从 YTVideoInfo 转换）
@@ -770,18 +756,16 @@ function outputAction(message, prefix = "") {
 function outputSongInfo(info) {
 	const title = info.title || "未知标题";
 	const artist = info.artist || "未知艺人";
-	const duration = info.duration ? typeof info.duration === "string" ? info.duration : formatDuration(info.duration) : "--:--";
 	if (jsonMode) console.log(JSON.stringify({
 		action: "play",
 		song: {
 			title,
-			artist,
-			duration
+			artist
 		}
 	}));
 	else {
 		console.log(`${colorize("→", "yellow")} ${colorize("正在播放", "yellow")}`);
-		console.log(`  ${colorize("🎵", "cyan")} ${colorize(title, "bold")} ${colorize(`(${duration})`, "gray")}`);
+		console.log(`  ${colorize("🎵", "cyan")} ${colorize(title, "bold")}`);
 		console.log(`  ${colorize("👤", "cyan")} ${colorize(artist, "white")}`);
 	}
 }
@@ -827,7 +811,10 @@ var YTDLP_TIMEOUT = 3e4;
 * @throws 命令执行失败时抛出错误
 */
 async function runYtdlp(args, timeout = YTDLP_TIMEOUT) {
-	const result = await exec("yt-dlp", args, { timeout });
+	const result = await exec(await resolveExecutable("yt-dlp") || "yt-dlp", args, {
+		timeout,
+		noShell: true
+	});
 	if (result.status !== 0) {
 		const errorMsg = result.stderr.trim() || result.stdout.trim() || `yt-dlp 退出码 ${result.status}`;
 		throw new Error(`yt-dlp 执行失败：${errorMsg}`);
@@ -1101,8 +1088,7 @@ function isReliableMatch(best) {
 * 规范化文件路径（跨平台 temp 目录映射）
 * 
 * Git Bash 中 `/tmp` 会自动映射到系统 temp 目录，
-* 但 PowerShell / cmd + Node.js 不会自动映射，
-* 需要手动将 `/tmp` 替换为 os.tmpdir()。
+* 但 Node.js 不会自动映射，需要手动替换为 os.tmpdir()。
 * 
 * @param filePath 原始路径
 * @returns 规范化后的绝对路径
@@ -1158,182 +1144,6 @@ async function playCommand(query, options) {
 		}
 		const best = bestPick.song;
 		outputAction("正在启动 mpv...", "播放");
-		if (options.outfile) {
-			const normalizedOutfile = normalizeOutfile(options.outfile);
-			const songInfo = {
-				title: best.title || query,
-				artist: best.artist || best.uploader || "未知艺人",
-				duration: best.duration
-			};
-			const startedInfo = {
-				status: "started",
-				...songInfo,
-				timestamp: (/* @__PURE__ */ new Date()).toISOString()
-			};
-			writeFileSync(normalizedOutfile, JSON.stringify(startedInfo, null, 2));
-			outputSuccess("播放已启动（started），正在提取音频流 URL 并开始播放", "播放");
-			const candidateUrl = best.id ? `https://www.youtube.com/watch?v=${best.id}` : best.webpage_url || best.url;
-			if (!candidateUrl) {
-				outputError("无法从搜索结果中获取视频标识", ["请尝试更具体的搜索词"], "播放");
-				process.exit(1);
-			}
-			const detachedScript = `
-        const net = require('node:net');
-        const fs = require('node:fs');
-        const child_process = require('node:child_process');
-        
-        const IPC_PATH = process.platform === 'win32' 
-          ? '\\\\\\\\.\\\\pipe\\\\music-mpv-ipc' 
-          : '/tmp/music-mpv-ipc';
-        const OUTFILE = ${JSON.stringify(normalizedOutfile)};
-        const SONG_INFO = ${JSON.stringify(songInfo)};
-        const CANDIDATE_URL = ${JSON.stringify(candidateUrl)};
-        
-        function execShell(cmd, args, timeoutMs) {
-          return new Promise((resolve) => {
-            const child = child_process.spawn(cmd, args, {
-              stdio: ['ignore', 'pipe', 'pipe'],
-              windowsHide: true,
-              timeout: timeoutMs
-            });
-            let stdout = '';
-            child.stdout.on('data', (d) => stdout += d.toString());
-            child.on('close', (code) => resolve({ code, stdout }));
-            child.on('error', () => resolve({ code: null, stdout: '' }));
-            setTimeout(() => { try { child.kill('SIGKILL'); } catch{} resolve({ code: null, stdout: '' }); }, timeoutMs + 1000);
-          });
-        }
-        
-        // 提取音频流直链
-        async function extractAudioUrl(videoUrl) {
-          const { code, stdout } = await execShell(
-            process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp',
-            [videoUrl, '-f', 'bestaudio', '-g', '--no-download', '--no-warnings'],
-            45000
-          );
-          return (code === 0 && stdout.trim()) ? stdout.trim().split('\\n')[0] : null;
-        }
-        
-        // 停止所有现有的 mpv 进程
-        async function killMpv() {
-          if (process.platform === 'win32') {
-            await execShell('taskkill', ['/F', '/IM', 'mpv.exe'], 5000);
-          } else {
-            await execShell('pkill', ['-x', 'mpv'], 5000);
-          }
-        }
-        
-        // 等待 mpv 停止运行
-        async function waitForMpvToStop() {
-          for (let i = 0; i < 15; i++) {
-            const { code } = await execShell(
-              process.platform === 'win32' ? 'tasklist' : 'pgrep',
-              process.platform === 'win32' ? ['/FI', 'IMAGENAME eq mpv.exe'] : ['-x', 'mpv'],
-              3000
-            );
-            if (process.platform === 'win32') {
-              if (code === 0 && !/mpv\\.exe/i.test('')) {
-                // tasklist 总是返回 0，检查 stdout 是否包含 mpv.exe
-                const { stdout } = await execShell('tasklist', ['/FI', 'IMAGENAME eq mpv.exe'], 3000);
-                if (!/mpv\\.exe/i.test(stdout)) return;
-              }
-            } else {
-              if (code !== 0) return;
-            }
-            await new Promise(r => setTimeout(r, 500));
-          }
-        }
-        
-        function startMpv(args) {
-          const child = child_process.spawn(process.platform === 'win32' ? 'mpv.exe' : 'mpv',
-            ['--no-video', '--keep-open-pause=no', '--ytdl-format=bestaudio/best', '--ytdl',
-             '--input-ipc-server=' + IPC_PATH, ...args],
-            { stdio: ['ignore', 'ignore', 'ignore'], detached: true, windowsHide: true }
-          );
-          if (child.unref) child.unref();
-          return child;
-        }
-        
-        function sendIpc(cmd) {
-          return new Promise((resolve) => {
-            const socket = net.createConnection(IPC_PATH);
-            const chunks = [];
-            let settled = false;
-            socket.setTimeout(3000);
-            socket.on('connect', () => socket.write(JSON.stringify(cmd) + '\\n'));
-            socket.on('data', (chunk) => {
-              chunks.push(chunk);
-              const data = Buffer.concat(chunks).toString('utf8').trim();
-              const firstLine = data.split(/\\r?\\n/).find(Boolean);
-              if (!firstLine) return;
-              try {
-                const response = JSON.parse(firstLine);
-                finish(response.error === 'success', response, response.error);
-              } catch (error) {
-                finish(false, null, 'Invalid mpv response: ' + firstLine);
-              }
-            });
-            socket.on('timeout', () => finish(false, null, 'IPC timeout'));
-            socket.on('error', (error) => finish(false, null, error.message));
-            socket.on('end', () => {
-              if (!settled) {
-                const data = Buffer.concat(chunks).toString('utf8').trim();
-                finish(Boolean(data), null, data ? null : 'No IPC response');
-              }
-            });
-            function finish(ok, response, error) {
-              if (settled) return;
-              settled = true;
-              socket.destroy();
-              resolve({ ok, response, error });
-            }
-          });
-        }
-        
-        async function verifyPlayback() {
-          const deadline = Date.now() + 20000;
-          while (Date.now() < deadline) {
-            const res = await sendIpc({ command: ['get_property', 'time-pos'] });
-            if (res.ok) return true;
-            await new Promise(r => setTimeout(r, 750));
-          }
-          return false;
-        }
-        
-        function updateOutfile(status) {
-          const info = { ...SONG_INFO, status, timestamp: new Date().toISOString() };
-          try { fs.writeFileSync(OUTFILE, JSON.stringify(info, null, 2)); } catch {}
-        }
-        
-        (async () => {
-          // 1. 提取直链（20-25 秒）
-          let playbackUrl = CANDIDATE_URL;
-          const directUrl = await extractAudioUrl(CANDIDATE_URL);
-          if (directUrl) playbackUrl = directUrl;
-          
-          // 2. 停止旧播放
-          await killMpv();
-          await waitForMpvToStop();
-          
-          // 3. 启动 mpv
-          startMpv([playbackUrl]);
-          
-          // 4. 等待 mpv 启动（3 秒）
-          await new Promise(r => setTimeout(r, 3000));
-          
-          // 5. 验证播放
-          const ok = await verifyPlayback();
-          updateOutfile(ok ? 'success' : 'failed');
-        })();
-      `;
-			const { spawn } = await import("node:child_process");
-			spawn(process.execPath, ["-e", detachedScript], {
-				detached: true,
-				stdio: "ignore",
-				windowsHide: true
-			}).unref();
-			process.exit(0);
-		}
 		if (await mpvIsRunning()) {
 			outputAction("停止当前播放...", "播放");
 			await killMpv();
@@ -1350,15 +1160,26 @@ async function playCommand(query, options) {
 		if (!directUrl) outputInfo("音频 URL 提取失败，使用 YouTube URL 播放（需要 mpv 支持 yt-dl hook）", "播放");
 		startMpv([playbackUrl]);
 		outputAction("等待播放...", "播放");
-		if (!await verifyPlayback(timeout)) {
+		const verified = await verifyPlayback(timeout);
+		const songInfo = {
+			title: best.title || query,
+			artist: best.artist || best.uploader || "未知艺人"
+		};
+		if (!verified) {
 			outputError("播放失败（mpv 启动但无声音）", [], "播放");
+			if (options.outfile) writeFileSync(normalizeOutfile(options.outfile), JSON.stringify({
+				status: "failed",
+				...songInfo,
+				timestamp: (/* @__PURE__ */ new Date()).toISOString()
+			}, null, 2));
 			process.exit(1);
 		}
-		outputSongInfo({
-			title: best.title || query,
-			artist: best.artist || best.uploader || "未知艺人",
-			duration: best.duration
-		});
+		outputSongInfo(songInfo);
+		if (options.outfile) writeFileSync(normalizeOutfile(options.outfile), JSON.stringify({
+			status: "success",
+			...songInfo,
+			timestamp: (/* @__PURE__ */ new Date()).toISOString()
+		}, null, 2));
 		if (!isReliableMatch(best)) outputInfo("当前匹配度较低，可能不是最相关的歌曲", "提示");
 		process.exit(0);
 	} catch (err) {
@@ -1428,7 +1249,7 @@ async function statusCommand(options) {
 }
 var program = new Command();
 program.name("music").description("播放、暂停、控制在线音乐").version("1.0.0");
-program.command("play [query..]", { isDefault: true }).description("播放歌曲（默认命令）").option("--artist", "艺人模式：播放指定艺人的歌曲", false).option("--count <n>", "艺人模式下的歌曲数量", parseInt, 10).option("-j, --json", "JSON 输出模式（供 Agent 解析）", false).option("--timeout <ms>", "超时时间（毫秒）", parseInt, DEFAULT_TIMEOUT).option("--outfile <path>", "将歌曲信息写入文件（异步模式，不阻塞）").action((query, options) => {
+program.command("play [query..]", { isDefault: true }).description("播放歌曲（默认命令）").option("--artist", "艺人模式：播放指定艺人的歌曲", false).option("--count <n>", "艺人模式下的歌曲数量", parseInt, 10).option("-j, --json", "JSON 输出模式（供 Agent 解析）", false).option("--timeout <ms>", "超时时间（毫秒）", parseInt, DEFAULT_TIMEOUT).option("--outfile <path>", "将歌曲信息写入文件").action((query, options) => {
 	const queryArr = Array.isArray(query) ? query : query ? [String(query)] : [];
 	const queryStr = queryArr.length > 0 ? queryArr.join(" ") : "";
 	if (!queryStr) {

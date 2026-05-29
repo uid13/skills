@@ -101,8 +101,8 @@ let mpvProcess: ChildProcess | null = null;
  */
 export async function mpvIsRunning(): Promise<boolean> {
   const result = IS_WINDOWS
-    ? await exec('tasklist', ['/FI', 'IMAGENAME eq mpv.exe'], { timeout: 3_000 })
-    : await exec('pgrep', ['-x', 'mpv'], { timeout: 3_000 });
+    ? await exec('tasklist', ['/FI', 'IMAGENAME eq mpv.exe'], { timeout: 3_000, noShell: true })
+    : await exec('pgrep', ['-x', 'mpv'], { timeout: 3_000, noShell: true });
 
   if (IS_WINDOWS) {
     return /mpv\.exe/i.test(result.stdout);
@@ -117,9 +117,9 @@ export async function mpvIsRunning(): Promise<boolean> {
  */
 export async function killMpv(): Promise<void> {
   if (IS_WINDOWS) {
-    await exec('taskkill', ['/F', '/IM', 'mpv.exe'], { timeout: 5_000 });
+    await exec('taskkill', ['/F', '/IM', 'mpv.exe'], { timeout: 5_000, noShell: true });
   } else {
-    await exec('pkill', ['-x', 'mpv'], { timeout: 5_000 });
+    await exec('pkill', ['-x', 'mpv'], { timeout: 5_000, noShell: true });
   }
   mpvProcess = null;
 }
@@ -279,7 +279,8 @@ export async function getPlaybackStatus(): Promise<'playing' | 'paused' | null> 
  * @returns 是否播放成功
  */
 export async function verifyPlayback(): Promise<boolean> {
-  for (let i = 0; i < 10; i++) {
+  // 等待 mpv 启动并加载音频流（最多 15 秒）
+  for (let i = 0; i < 30; i++) {
     await sleep(500);
 
     const result = await sendIpc({ command: ['get_property', 'time-pos'] });

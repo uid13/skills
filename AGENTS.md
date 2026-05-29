@@ -93,7 +93,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 - 所有脚本必须同时工作于 Windows / macOS / Linux
 - 使用项目内的 `lib/spawn.ts` 封装，不要直接 `child_process.spawn`
 - 文件路径统一使用 `node:path` 的 posix 或自动识别
-- Windows 上 PowerShell 命令与 bash 命令分开处理
+- Windows 上使用 Git Bash（不支持 PowerShell）
 
 ### 4. 输出 ESM
 

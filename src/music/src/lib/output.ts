@@ -261,26 +261,23 @@ export function outputAction(message: string, prefix = ''): void {
  * 
  * JSON 格式：
  * ```json
- * { "action": "play", "song": { "title": "...", "artist": "...", "duration": "3:45" } }
+ * { "action": "play", "song": { "title": "...", "artist": "..." } }
  * ```
  * 
  * @param info 歌曲信息（从 YTVideoInfo 转换）
  */
-export function outputSongInfo(info: { title?: string; artist?: string; duration?: number | string }): void {
+export function outputSongInfo(info: { title?: string; artist?: string }): void {
   const title = info.title || '未知标题';
   const artist = info.artist || '未知艺人';
-  const duration = info.duration
-    ? (typeof info.duration === 'string' ? info.duration : formatDuration(info.duration))
-    : '--:--';
 
   if (jsonMode) {
     console.log(JSON.stringify({
       action: 'play',
-      song: { title, artist, duration },
+      song: { title, artist },
     }));
   } else {
     console.log(`${colorize('→', 'yellow')} ${colorize('正在播放', 'yellow')}`);
-    console.log(`  ${colorize('🎵', 'cyan')} ${colorize(title, 'bold')} ${colorize(`(${duration})`, 'gray')}`);
+    console.log(`  ${colorize('🎵', 'cyan')} ${colorize(title, 'bold')}`);
     console.log(`  ${colorize('👤', 'cyan')} ${colorize(artist, 'white')}`);
   }
 }

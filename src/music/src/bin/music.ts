@@ -40,8 +40,7 @@ import { startMpv, mpvIsRunning, sendIpc, verifyPlayback, getPlaybackStatus,
  * 规范化文件路径（跨平台 temp 目录映射）
  * 
  * Git Bash 中 `/tmp` 会自动映射到系统 temp 目录，
- * 但 PowerShell / cmd + Node.js 不会自动映射，
- * 需要手动将 `/tmp` 替换为 os.tmpdir()。
+ * 但 Node.js 不会自动映射，需要手动替换为 os.tmpdir()。
  * 
  * @param filePath 原始路径
  * @returns 规范化后的绝对路径
@@ -116,207 +115,15 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
     }
     const best = bestPick.song;
 
-    // 6. 启动 mpv 播放
+    // 5. 停止旧播放
     outputAction('正在启动 mpv...', '播放');
-    
-    // 7. 如果指定了 outfile，立即写入 started 状态并返回（异步模式）
-    if (options.outfile) {
-      const normalizedOutfile = normalizeOutfile(options.outfile);
-      const songInfo = {
-        title: best.title || query,
-        artist: best.artist || best.uploader || '未知艺人',
-        duration: best.duration,
-      };
-      const startedInfo = {
-        status: 'started',
-        ...songInfo,
-        timestamp: new Date().toISOString()
-      };
-      writeFileSync(normalizedOutfile, JSON.stringify(startedInfo, null, 2));
-      outputSuccess('播放已启动（started），正在提取音频流 URL 并开始播放', '播放');
-
-      // 提取候选 URL（YouTube 视频 URL）
-      const candidateUrl = best.id
-        ? `https://www.youtube.com/watch?v=${best.id}`
-        : (best.webpage_url || best.url);
-      if (!candidateUrl) {
-        outputError('无法从搜索结果中获取视频标识', ['请尝试更具体的搜索词'], '播放');
-        process.exit(1);
-      }
-
-      // 启动 detached 子进程：后台提取直链 → 停止旧播放 → 启动 mpv → 验证 → 更新 outfile
-      const detachedScript = `
-        const net = require('node:net');
-        const fs = require('node:fs');
-        const child_process = require('node:child_process');
-        
-        const IPC_PATH = process.platform === 'win32' 
-          ? '\\\\\\\\.\\\\pipe\\\\music-mpv-ipc' 
-          : '/tmp/music-mpv-ipc';
-        const OUTFILE = ${JSON.stringify(normalizedOutfile)};
-        const SONG_INFO = ${JSON.stringify(songInfo)};
-        const CANDIDATE_URL = ${JSON.stringify(candidateUrl)};
-        
-        function execShell(cmd, args, timeoutMs) {
-          return new Promise((resolve) => {
-            const child = child_process.spawn(cmd, args, {
-              stdio: ['ignore', 'pipe', 'pipe'],
-              windowsHide: true,
-              timeout: timeoutMs
-            });
-            let stdout = '';
-            child.stdout.on('data', (d) => stdout += d.toString());
-            child.on('close', (code) => resolve({ code, stdout }));
-            child.on('error', () => resolve({ code: null, stdout: '' }));
-            setTimeout(() => { try { child.kill('SIGKILL'); } catch{} resolve({ code: null, stdout: '' }); }, timeoutMs + 1000);
-          });
-        }
-        
-        // 提取音频流直链
-        async function extractAudioUrl(videoUrl) {
-          const { code, stdout } = await execShell(
-            process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp',
-            [videoUrl, '-f', 'bestaudio', '-g', '--no-download', '--no-warnings'],
-            45000
-          );
-          return (code === 0 && stdout.trim()) ? stdout.trim().split('\\n')[0] : null;
-        }
-        
-        // 停止所有现有的 mpv 进程
-        async function killMpv() {
-          if (process.platform === 'win32') {
-            await execShell('taskkill', ['/F', '/IM', 'mpv.exe'], 5000);
-          } else {
-            await execShell('pkill', ['-x', 'mpv'], 5000);
-          }
-        }
-        
-        // 等待 mpv 停止运行
-        async function waitForMpvToStop() {
-          for (let i = 0; i < 15; i++) {
-            const { code } = await execShell(
-              process.platform === 'win32' ? 'tasklist' : 'pgrep',
-              process.platform === 'win32' ? ['/FI', 'IMAGENAME eq mpv.exe'] : ['-x', 'mpv'],
-              3000
-            );
-            if (process.platform === 'win32') {
-              if (code === 0 && !/mpv\\.exe/i.test('')) {
-                // tasklist 总是返回 0，检查 stdout 是否包含 mpv.exe
-                const { stdout } = await execShell('tasklist', ['/FI', 'IMAGENAME eq mpv.exe'], 3000);
-                if (!/mpv\\.exe/i.test(stdout)) return;
-              }
-            } else {
-              if (code !== 0) return;
-            }
-            await new Promise(r => setTimeout(r, 500));
-          }
-        }
-        
-        function startMpv(args) {
-          const child = child_process.spawn(process.platform === 'win32' ? 'mpv.exe' : 'mpv',
-            ['--no-video', '--keep-open-pause=no', '--ytdl-format=bestaudio/best', '--ytdl',
-             '--input-ipc-server=' + IPC_PATH, ...args],
-            { stdio: ['ignore', 'ignore', 'ignore'], detached: true, windowsHide: true }
-          );
-          if (child.unref) child.unref();
-          return child;
-        }
-        
-        function sendIpc(cmd) {
-          return new Promise((resolve) => {
-            const socket = net.createConnection(IPC_PATH);
-            const chunks = [];
-            let settled = false;
-            socket.setTimeout(3000);
-            socket.on('connect', () => socket.write(JSON.stringify(cmd) + '\\n'));
-            socket.on('data', (chunk) => {
-              chunks.push(chunk);
-              const data = Buffer.concat(chunks).toString('utf8').trim();
-              const firstLine = data.split(/\\r?\\n/).find(Boolean);
-              if (!firstLine) return;
-              try {
-                const response = JSON.parse(firstLine);
-                finish(response.error === 'success', response, response.error);
-              } catch (error) {
-                finish(false, null, 'Invalid mpv response: ' + firstLine);
-              }
-            });
-            socket.on('timeout', () => finish(false, null, 'IPC timeout'));
-            socket.on('error', (error) => finish(false, null, error.message));
-            socket.on('end', () => {
-              if (!settled) {
-                const data = Buffer.concat(chunks).toString('utf8').trim();
-                finish(Boolean(data), null, data ? null : 'No IPC response');
-              }
-            });
-            function finish(ok, response, error) {
-              if (settled) return;
-              settled = true;
-              socket.destroy();
-              resolve({ ok, response, error });
-            }
-          });
-        }
-        
-        async function verifyPlayback() {
-          const deadline = Date.now() + 20000;
-          while (Date.now() < deadline) {
-            const res = await sendIpc({ command: ['get_property', 'time-pos'] });
-            if (res.ok) return true;
-            await new Promise(r => setTimeout(r, 750));
-          }
-          return false;
-        }
-        
-        function updateOutfile(status) {
-          const info = { ...SONG_INFO, status, timestamp: new Date().toISOString() };
-          try { fs.writeFileSync(OUTFILE, JSON.stringify(info, null, 2)); } catch {}
-        }
-        
-        (async () => {
-          // 1. 提取直链（20-25 秒）
-          let playbackUrl = CANDIDATE_URL;
-          const directUrl = await extractAudioUrl(CANDIDATE_URL);
-          if (directUrl) playbackUrl = directUrl;
-          
-          // 2. 停止旧播放
-          await killMpv();
-          await waitForMpvToStop();
-          
-          // 3. 启动 mpv
-          startMpv([playbackUrl]);
-          
-          // 4. 等待 mpv 启动（3 秒）
-          await new Promise(r => setTimeout(r, 3000));
-          
-          // 5. 验证播放
-          const ok = await verifyPlayback();
-          updateOutfile(ok ? 'success' : 'failed');
-        })();
-      `;
-      
-      // 启动 detached 进程（父进程退出后继续运行）
-      const { spawn } = await import('node:child_process');
-      const child = spawn(process.execPath, ['-e', detachedScript], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-      });
-      child.unref();
-
-      // 主进程立即返回
-      process.exit(0);
-    }
-
-    // 8. 如果没有 outfile，同步提取 URL + 停止旧播放 + 启动播放 + 等待验证（旧行为）
-    
-    // 停止旧播放
     if (await mpvIsRunning()) {
       outputAction('停止当前播放...', '播放');
       await killMpv();
       await waitForMpvToStop();
     }
-    
+
+    // 6. 提取音频流 URL
     outputAction('提取音频流 URL...', '播放');
     const candidateUrl = best.id
       ? `https://www.youtube.com/watch?v=${best.id}`
@@ -331,21 +138,34 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
       outputInfo('音频 URL 提取失败，使用 YouTube URL 播放（需要 mpv 支持 yt-dl hook）', '播放');
     }
 
+    // 7. 启动 mpv
     startMpv([playbackUrl]);
-    
+
+    // 8. 等待播放验证
     outputAction('等待播放...', '播放');
     const verified = await verifyPlayback(timeout);
 
+    const songInfo = {
+      title: best.title || query,
+      artist: best.artist || best.uploader || '未知艺人',
+    };
+
     if (!verified) {
       outputError('播放失败（mpv 启动但无声音）', [], '播放');
+      if (options.outfile) {
+        const normalizedOutfile = normalizeOutfile(options.outfile);
+        writeFileSync(normalizedOutfile, JSON.stringify({ status: 'failed', ...songInfo, timestamp: new Date().toISOString() }, null, 2));
+      }
       process.exit(1);
     }
 
-    outputSongInfo({
-      title: best.title || query,
-      artist: best.artist || best.uploader || '未知艺人',
-      duration: best.duration,
-    });
+    // 9. 输出结果
+    outputSongInfo(songInfo);
+
+    if (options.outfile) {
+      const normalizedOutfile = normalizeOutfile(options.outfile);
+      writeFileSync(normalizedOutfile, JSON.stringify({ status: 'success', ...songInfo, timestamp: new Date().toISOString() }, null, 2));
+    }
 
     if (!isReliableMatch(best)) {
       outputInfo('当前匹配度较低，可能不是最相关的歌曲', '提示');
@@ -458,7 +278,7 @@ program
   .option('--count <n>', '艺人模式下的歌曲数量', parseInt, 10)
   .option('-j, --json', 'JSON 输出模式（供 Agent 解析）', false)
   .option('--timeout <ms>', '超时时间（毫秒）', parseInt, DEFAULT_TIMEOUT)
-  .option('--outfile <path>', '将歌曲信息写入文件（异步模式，不阻塞）')
+  .option('--outfile <path>', '将歌曲信息写入文件')
   .action((query: string[] | string | undefined, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number; outfile?: string }) => {
     // commander 在 isDefault:true + 变长参数 场景下，可能传入 string 或 array，统一处理
     const queryArr = Array.isArray(query) ? query : (query ? [String(query)] : []);

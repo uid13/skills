@@ -3,6 +3,8 @@
 > 本目录是 `music` 技能的 **TypeScript + Vite 8 (Rolldown) 工程化源码**
 > 编译产物在 [../../skills/music/](../../skills/music/)（用户使用的最终产物）
 
+**支持平台**：Git Bash (Windows)、Linux、macOS。不支持 PowerShell。
+
 ## 📦 技术栈
 
 - **语言**：TypeScript 5.x

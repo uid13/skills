@@ -29,67 +29,6 @@ import type { Platform, InstallHint } from './types.js';
  */
 export const IS_WINDOWS = process.platform === 'win32';
 
-// 缓存检测到的 Windows shell
-let detectedWindowsShell: string | undefined;
-
-/**
- * 检测 Windows 系统下可用的 shell（优先 pwsh，其次 bash）
- * 用于避免使用 cmd（cmd 没有 mise 激活，找不到 yt-dlp/mpv）
- * 
- * @returns shell 路径或名称（'pwsh' | 'bash' | 'cmd.exe）
- */
-function detectWindowsShell(): string {
-  if (detectedWindowsShell !== undefined) {
-    return detectedWindowsShell;
-  }
-
-  // 优先检测 pwsh 是否在 PATH 里
-  if (process.env.PSModulePath?.includes('PowerShell\\7') || 
-      process.env.PSModulePath?.includes('PowerShell/7')) {
-    detectedWindowsShell = 'pwsh';
-    return detectedWindowsShell;
-  }
-
-  // 其次检测 bash（git bash）
-  if (process.env.GIT_BASH_PATH) {
-    detectedWindowsShell = process.env.GIT_BASH_PATH;
-    return detectedWindowsShell;
-  }
-
-  // 尝试通过执行 which/where 检测
-  try {
-    const result = require('child_process').spawnSync('where', ['pwsh'], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 2000
-    });
-    if (result.status === 0 && result.stdout.includes('pwsh')) {
-      detectedWindowsShell = 'pwsh';
-      return detectedWindowsShell;
-    }
-  } catch {
-    // 继续尝试 bash
-  }
-
-  try {
-    const result = require('child_process').spawnSync('where', ['bash'], {
-      encoding: 'utf8',
-      windowsHide: true,
-      timeout: 2000
-    });
-    if (result.status === 0 && result.stdout.includes('bash')) {
-      detectedWindowsShell = 'bash';
-      return detectedWindowsShell;
-    }
-  } catch {
-    // fallback 到默认
-  }
-
-  // 都没找到，fallback 到 pwsh（会报错但明确提示）
-  detectedWindowsShell = 'pwsh';
-  return detectedWindowsShell;
-}
-
 /**
  * 不同系统下的依赖安装命令
  */
@@ -121,6 +60,7 @@ export interface ExecOptions {
   maxBuffer?: number;          // 输出缓冲区大小
   encoding?: BufferEncoding;   // 输出编码
   windowsHide?: boolean;       // Windows 下是否隐藏命令行窗口
+  noShell?: boolean;           // Windows 下不包装 bash（直接调用可执行文件）
 }
 
 /**
@@ -147,6 +87,7 @@ export async function exec(
     maxBuffer = 20 * 1024 * 1024,
     encoding = 'utf8',
     windowsHide = true,
+    noShell = false,
   } = options;
 
   return new Promise((resolve) => {
@@ -159,21 +100,12 @@ export async function exec(
     let actualCommand = command;
     let actualArgs = args;
 
-    // Windows 强制使用 pwsh 或 bash，避免使用 cmd（cmd 没有 mise 激活）
-    if (IS_WINDOWS) {
-      const shell = detectWindowsShell();
-      if (shell === 'pwsh') {
-        // PowerShell: 用 & 调用语法，避免参数转义问题
-        const cmdString = `& "${command}" ${args.map(a => `"${a.replace(/"/g, '`"')}"`).join(' ')}`;
-        actualCommand = 'pwsh';
-        actualArgs = ['-NoProfile', '-Command', cmdString];
-      } else if (shell === 'bash') {
-        // Bash: 用 -c 参数传递完整命令
-        const cmdString = [command, ...args.map(a => `"${a.replace(/"/g, '\\"')}"`)].join(' ');
-        actualCommand = 'bash';
-        actualArgs = ['-c', cmdString];
-      }
-      // 其他情况保持原来的直接调用方式（但可能找不到 yt-dlp/mpv）
+    // Windows 下用 bash 包装（Git Bash 支持 mise 激活）
+    // noShell=true 时直接调用原始命令
+    if (IS_WINDOWS && !noShell) {
+      const cmdString = [command, ...args.map(a => `"${a.replace(/"/g, '\\"')}"`)].join(' ');
+      actualCommand = 'bash';
+      actualArgs = ['-c', cmdString];
     }
 
     const child = spawn(actualCommand, actualArgs, spawnOptions);
@@ -263,7 +195,7 @@ export async function exec(
  * @returns 是否可用
  */
 export async function commandVersionWorks(command: string): Promise<boolean> {
-  const result = await exec(command, ['--version'], { timeout: 8_000 });
+  const result = await exec(command, ['--version'], { timeout: 8_000, noShell: true });
   if (result.status !== 0) return false;
 
   const output = (result.stdout + result.stderr).trim();
@@ -297,6 +229,44 @@ export function windowsPathCandidates(command: string): string[] {
 }
 
 /**
+ * 查找 mise 安装的真实可执行文件（绕过 shim）
+ * mise shim 是 shell 脚本，直接执行会创建窗口
+ * 
+ * @param command 命令名（如 'yt-dlp'、'mpv'）
+ * @returns 真实 exe 路径，找不到返回空字符串
+ */
+function findMiseRealExecutable(command: string): string {
+  const miseInstalls = path.join(os.homedir(), '.mise', 'data', 'installs');
+  // 兼容用户自定义 mise 路径
+  const miseRoot = process.env.MISE_DATA_DIR || miseInstalls;
+  const installsDir = path.join(miseRoot, 'installs');
+  
+  if (!fs.existsSync(installsDir)) return '';
+  
+  // 查找匹配的安装目录（如 'yt-dlp/2026.03.17/yt-dlp.exe'）
+  try {
+    for (const entry of fs.readdirSync(installsDir)) {
+      if (!entry.toLowerCase().includes(command.toLowerCase())) continue;
+      const entryDir = path.join(installsDir, entry);
+      if (!fs.statSync(entryDir).isDirectory()) continue;
+      
+      // 遍历版本目录
+      for (const ver of fs.readdirSync(entryDir)) {
+        const verDir = path.join(entryDir, ver);
+        if (!fs.statSync(verDir).isDirectory()) continue;
+        
+        // 查找 exe 文件
+        const exeName = IS_WINDOWS ? `${command}.exe` : command;
+        const exePath = path.join(verDir, exeName);
+        if (fs.existsSync(exePath)) return exePath;
+      }
+    }
+  } catch {}
+  
+  return '';
+}
+
+/**
  * 使用 where.exe / command -v 查找命令路径
  * - Windows：where.exe
  * - Linux/macOS：sh -lc 'command -v <name>'
@@ -309,7 +279,7 @@ export async function locatorCandidates(command: string): Promise<string[]> {
     ? ['where.exe', [command]] as [string, string[]]
     : ['sh', ['-lc', `command -v ${command}`]] as [string, string[]];
 
-  const result = await exec(locator[0], locator[1], { timeout: 5_000 });
+  const result = await exec(locator[0], locator[1], { timeout: 5_000, noShell: true });
   if (result.status !== 0) return [];
 
   return result.stdout
@@ -380,12 +350,20 @@ loadPersistentCache();
 export async function resolveExecutable(command: string): Promise<string> {
   if (resolveCache.has(command)) {
     const cached = resolveCache.get(command)!;
-    const result = await exec(cached, ['--version'], { timeout: 3_000 });
+    const result = await exec(cached, ['--version'], { timeout: 3_000, noShell: true });
     if (result.status === 0) return cached;
     resolveCache.delete(command);
   }
 
   let resolved = '';
+
+  // 策略 0：mise 安装目录（绕过 shim，避免窗口弹出）
+  if (IS_WINDOWS && !resolved) {
+    const misePath = findMiseRealExecutable(command);
+    if (misePath && await commandVersionWorks(misePath)) {
+      resolved = misePath;
+    }
+  }
 
   // 策略 1：直接执行
   if (await commandVersionWorks(command)) {

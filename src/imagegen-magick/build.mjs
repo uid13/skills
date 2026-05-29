@@ -31,7 +31,7 @@
 import { build } from 'vite'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { chmodSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, rmSync, readdirSync, copyFileSync } from 'node:fs'
 import { platform } from 'node:os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -163,6 +163,14 @@ async function main() {
       console.warn(`⚠ 警告: 仍生成了 ${chunks.length} 个 chunk 文件，尝试清理...`)
       rmSync(chunksDir, { recursive: true, force: true })
     }
+  }
+
+  // 拷贝 SKILL.md 到输出目录
+  const skillMdSrc = resolve(__dirname, 'SKILL.md')
+  const skillMdDest = resolve(__dirname, '../../skills/imagegen-magick/SKILL.md')
+  if (existsSync(skillMdSrc)) {
+    copyFileSync(skillMdSrc, skillMdDest)
+    console.log('📋 已拷贝 SKILL.md → skills/imagegen-magick/SKILL.md')
   }
 
   // 统计结果

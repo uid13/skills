@@ -14,7 +14,7 @@
  */
 
 import type { YTVideoInfo } from './types.js';
-import { exec } from './utils.js';
+import { exec, resolveExecutable } from './utils.js';
 
 /**
  * 默认超时时间（毫秒）
@@ -30,7 +30,8 @@ const YTDLP_TIMEOUT = 30_000;
  * @throws 命令执行失败时抛出错误
  */
 async function runYtdlp(args: string[], timeout = YTDLP_TIMEOUT): Promise<string> {
-  const result = await exec('yt-dlp', args, { timeout });
+  const ytdlpPath = await resolveExecutable('yt-dlp');
+  const result = await exec(ytdlpPath || 'yt-dlp', args, { timeout, noShell: true });
 
   if (result.status !== 0) {
     // yt-dlp 的错误信息可能在 stdout 或 stderr
