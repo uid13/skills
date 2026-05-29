@@ -10,11 +10,11 @@ import { resolve } from 'node:path';
  * - ssr: true（避免 node: 模块被外部化警告）
  * - lib 模式，ESM 格式输出
  * - rolldownOptions 外部化所有 node: 内置模块
+ * - ssrNoExternal: commander 需要打包（不能外部化）
  * - 输出到 skills/music/scripts/dist/
  */
 export default defineConfig({
   build: {
-    ssr: true,
     lib: {
       entry: resolve(__dirname, 'src/bin/music.ts'),
       formats: ['es'],
