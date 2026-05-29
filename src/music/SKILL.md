@@ -48,7 +48,7 @@ license: MIT
 播放命令**绝对不能同步调用**（脚本运行 10-30 秒），必须后台执行。
 
 ```bash
-nohup node <skill-dir>/scripts/dist/music.mjs play "<搜索词>" --outfile /tmp/music_out.json </dev/null >/dev/null 2>&1 & disown
+nohup node <skill-dir>/scripts/dist/music.mjs play "<搜索词>" --outfile /tmp/music_out.json > /dev/null 2>&1 & disown
 ```
 
 `nohup` + `disown` 将进程完全脱离 shell，bash 工具退出后子进程继续运行。

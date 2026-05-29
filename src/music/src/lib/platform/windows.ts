@@ -37,6 +37,6 @@ export class WindowsStrategy implements PlatformStrategy {
   }
 
   getLocatorCommand(): [string, string[]] {
-    return ['where.exe', []];
+    return ['which', []];
   }
 }

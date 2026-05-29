@@ -45,7 +45,7 @@ var WindowsStrategy = class {
 		return process.env.MISE_DATA_DIR ? `${process.env.MISE_DATA_DIR}/installs` : `${process.env.HOME || ""}/.mise/data/installs`;
 	}
 	getLocatorCommand() {
-		return ["where.exe", []];
+		return ["which", []];
 	}
 };
 //#endregion
