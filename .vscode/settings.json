@@ -1,0 +1,30 @@
+{
+  // 编辑器设置：跟随 .editorconfig
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // TypeScript 解析配置（适配 Monorepo workspaces）
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // 文件排除（侧边栏不显示）
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/dist/*.mjs.map": false
+  },
+
+  // 搜索排除（避免搜索 node_modules）
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": false
+  },
+
+  // 文件关联
+  "files.associations": {
+    "*.mjs": "javascript",
+    "*.cjs": "javascript"
+  }
+}
