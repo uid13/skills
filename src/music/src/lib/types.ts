@@ -29,6 +29,7 @@ export interface YTVideoFlat {
 export interface YTVideoFull {
   id?: string;
   title?: string;
+  artist?: string;
   uploader?: string;
   channel?: string;
   channel_is_verified?: boolean;
@@ -46,18 +47,6 @@ export interface YTVideoFull {
  * YouTube 视频信息（通用类型，可能是 flat-playlist 或 dump-json 的结果）
  */
 export type YTVideoInfo = YTVideoFlat & YTVideoFull;
-
-/**
- * 歌曲播放信息（用于输出展示）
- */
-export interface SongInfo {
-  title: string;
-  uploader?: string;
-  channel?: string;
-  duration?: number;
-  duration_string?: string;
-  upload_date?: string;
-}
 
 // ============================================================
 // mpv IPC 控制
@@ -104,32 +93,6 @@ export type ControlAction =
   | 'stop'
   | 'status';
 
-/**
- * 控制命令对应的 mpv IPC 命令映射
- */
-export interface ControlCommandMap {
-  command: (string | number | boolean)[];
-}
-
-// ============================================================
-// 播放参数
-// ============================================================
-
-/**
- * play 子命令的解析结果
- */
-export interface PlayOptions {
-  query: string;               // 搜索关键词（歌曲名或艺人名）
-  artist: boolean;             // 是否歌手模式（--artist 标志）
-  count: number;               // 歌手模式下播放的歌曲数量（--count N）
-  outfile?: string;            // 输出文件路径（--outfile 选项）
-}
-
-/**
- * music 子命令类型
- */
-export type MusicCommand = 'play' | 'control' | ControlAction;
-
 // ============================================================
 // 歌曲评分
 // ============================================================
@@ -138,20 +101,6 @@ export type MusicCommand = 'play' | 'control' | ControlAction;
  * 歌曲评分结果（用于排序和筛选）
  */
 export interface ScoredSong {
-  item: YTVideoFull | YTVideoFlat;
-  score: number;               // 正数表示匹配度，负数表示不合适
-}
-
-/**
- * 平台标识
- */
-export type Platform = 'win32' | 'darwin' | 'linux';
-
-/**
- * 依赖安装提示（按平台区分）
- */
-export interface InstallHint {
-  win32: string;
-  darwin: string;
-  linux: string;
+  song: YTVideoFull | YTVideoFlat;
+  score: number;
 }

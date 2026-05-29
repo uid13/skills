@@ -14,7 +14,7 @@
  * - JSON 模式：结构化 JSON（供 Agent 解析）
  */
 
-import type { ControlAction, ControlLabels, MusicOptions } from './types.js';
+import type { ControlAction } from './types.js';
 import { LABELS } from './mpv.js';
 
 /**

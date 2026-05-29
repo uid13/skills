@@ -29,8 +29,8 @@ import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, sep } from 'node:path';
 import { setJsonMode, getJsonMode, outputSuccess, outputError, outputAction, outputInfo, 
-         outputSongInfo, outputSongList, outputControlResult } from '../lib/output.js';
-import { checkPlaybackDependencies, exitWithError, IS_WINDOWS } from '../lib/utils.js';
+         outputSongInfo, outputControlResult } from '../lib/output.js';
+import { checkPlaybackDependencies, getPlatform } from '../lib/utils.js';
 import { searchYouTube, getAudioStreamUrl } from '../lib/ytdl.js';
 import { scoreAndRank, pickBestSong, isReliableMatch } from '../lib/scoring.js';
 import { startMpv, mpvIsRunning, sendIpc, verifyPlayback, getPlaybackStatus, 
@@ -46,14 +46,13 @@ import { startMpv, mpvIsRunning, sendIpc, verifyPlayback, getPlaybackStatus,
  * @returns 规范化后的绝对路径
  */
 function normalizeOutfile(filePath: string): string {
-  if (IS_WINDOWS) {
-    // Windows: /tmp/xxx → C:\Users\xxx\AppData\Local\Temp\xxx
-    if (filePath.startsWith('/tmp/') || filePath.startsWith('/tmp\\')) {
-      return resolve(tmpdir(), filePath.slice(5));
-    }
-    if (filePath === '/tmp') {
-      return tmpdir();
-    }
+  // Git Bash 中 /tmp 会自动映射到系统 temp 目录
+  // Node.js 不会自动映射，需要手动替换为 os.tmpdir()
+  if (filePath.startsWith('/tmp/') || filePath.startsWith('/tmp\\')) {
+    return resolve(tmpdir(), filePath.slice(5));
+  }
+  if (filePath === '/tmp') {
+    return tmpdir();
   }
   return filePath;
 }
@@ -103,7 +102,7 @@ async function playCommand(query: string, options: { artist?: boolean; count?: n
     const scored = scoreAndRank(query, results);
 
     if (scored.length === 0) {
-      outputError('无法找到匹配的歌曲（评分过低）', ['请尝试更具体的搜索词'], '评分');
+      outputError('未找到匹配的歌曲（评分过低）', ['请尝试更具体的搜索词'], '评分');
       process.exit(1);
     }
 
@@ -274,12 +273,10 @@ program
 program
   .command('play [query..]', { isDefault: true })
   .description('播放歌曲（默认命令）')
-  .option('--artist', '艺人模式：播放指定艺人的歌曲', false)
-  .option('--count <n>', '艺人模式下的歌曲数量', parseInt, 10)
   .option('-j, --json', 'JSON 输出模式（供 Agent 解析）', false)
   .option('--timeout <ms>', '超时时间（毫秒）', parseInt, DEFAULT_TIMEOUT)
   .option('--outfile <path>', '将歌曲信息写入文件')
-  .action((query: string[] | string | undefined, options: { artist?: boolean; count?: number; json?: boolean; timeout?: number; outfile?: string }) => {
+  .action((query: string[] | string | undefined, options: { json?: boolean; timeout?: number; outfile?: string }) => {
     // commander 在 isDefault:true + 变长参数 场景下，可能传入 string 或 array，统一处理
     const queryArr = Array.isArray(query) ? query : (query ? [String(query)] : []);
     const queryStr = queryArr.length > 0 ? queryArr.join(' ') : '';
@@ -313,23 +310,6 @@ program
   .option('-j, --json', 'JSON 输出模式', false)
   .action((options: { json?: boolean }) => {
     statusCommand(options);
-  });
-
-// 兼容旧版 "control" 子命令
-program
-  .command('control [action]')
-  .description('执行控制命令（兼容旧版）')
-  .option('-j, --json', 'JSON 输出模式', false)
-  .action((action: string | undefined, options: { json?: boolean }) => {
-    if (!action) {
-      outputError('请指定控制命令', [`可用命令: ${controlActions.join(', ')}`], '错误');
-      process.exit(1);
-    }
-    if (!controlActions.includes(action)) {
-      outputError(`未知的控制命令: ${action}`, [`可用命令: ${controlActions.join(', ')}`], '错误');
-      process.exit(1);
-    }
-    controlCommand(action, options);
   });
 
 // 解析参数

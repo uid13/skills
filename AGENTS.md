@@ -19,7 +19,7 @@
 ## 目录结构（重要）
 
 ```
-uid13-skills/
+skills-uid13/
 ├── src/                           # 源码目录（TypeScript 开发时）
 │   ├── imagegen-magick/           # 图像生成技能（当前实现）
 │   │   ├── src/bin/               # CLI 入口（render/check-fonts/info/scaffold）
@@ -91,7 +91,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 ### 3. 跨平台兼容
 
 - 所有脚本必须同时工作于 Windows / macOS / Linux
-- 使用项目内的 `lib/spawn.ts` 封装，不要直接 `child_process.spawn`
+- 使用项目内的跨平台 spawn 封装（imagegen-magick: `lib/spawn.ts`，music: `lib/utils.ts`），不要直接 `child_process.spawn`
 - 文件路径统一使用 `node:path` 的 posix 或自动识别
 - Windows 上使用 Git Bash（不支持 PowerShell）
 
@@ -229,10 +229,13 @@ npm run test           # 运行所有测试
 npm run typecheck      # 类型检查
 
 # 单个技能命令（需要 cd 到对应 src 目录）
-npm -w imagegen-magick build   # 编译指定技能
-npm -w imagegen-magick dev     # 监听指定技能
-npm -w music build             # 编译音乐技能
-npm -w music dev               # 监听音乐技能
+npm -w imagegen-magick-src build   # 编译指定技能
+
+npm -w imagegen-magick-src dev     # 监听指定技能
+
+npm -w music-src build             # 编译音乐技能
+
+npm -w music-src dev               # 监听音乐技能
 ```
 
 ## 参考资源

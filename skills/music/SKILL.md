@@ -27,7 +27,6 @@ license: MIT
 | 场景 | 策略 | 示例 |
 |------|------|------|
 | 歌曲名明确 | 直接用歌曲名；有艺人名一起加入 | `play "泡沫 邓紫棋"` |
-| 艺人明确但未指定歌曲 | 使用歌手模式（`--artist`） | `play "周杰伦" --artist` |
 | 心情/场景明确 | 转成自然搜索词 | `play "适合写代码的轻快中文歌"` |
 | 曲风明确 | 把曲风和语言/节奏偏好加入搜索词 | `play "city pop Japanese song"` |
 | 片名/作品名明确 | 搜索主题曲、插曲或 OST | `play "双城之战 主题曲"` |
@@ -39,7 +38,6 @@ license: MIT
 | `播放 泡沫，邓紫棋` | `泡沫 邓紫棋` | `play "泡沫 邓紫棋"` |
 | `play Somewhere - Within Temptation` | `Within Temptation Somewhere` | `play "Within Temptation Somewhere"` |
 | `来点轻音乐!!!!` | `轻音乐` | `play "轻音乐"` |
-| `听周杰伦的歌` | 识别为歌手模式 | `play "周杰伦" --artist` |
 | `播一下晴天` | `周杰伦 晴天` | `play "周杰伦 晴天"`（模型推断歌名对应艺人） |
 | `放点歌` | - | 先问用户：`想听什么心情或场景的？偏中文还是英文？` |
 
@@ -72,13 +70,13 @@ nohup node <skill-dir>/scripts/dist/music.mjs play "<搜索词>" --outfile /tmp/
 sleep 12 && cat /tmp/music_out.json
 ```
 
-如果 `status` 仍为 `"started"`，再等 5-10 秒重读；30 秒后仍未变化视为失败。
+如果文件不存在或为空，再等 5-10 秒重读；30 秒后仍未变化视为失败。
 
 ### outfile 格式
 
 ```json
 {
-  "status": "started | success | failed",
+  "status": "success | failed",
   "title": "Numb",
   "artist": "Linkin Park",
   "timestamp": "2026-05-29T00:00:00.000Z"
@@ -91,8 +89,6 @@ sleep 12 && cat /tmp/music_out.json
 |------|------|--------|
 | `--json` | JSON 输出模式 | 关闭 |
 | `--timeout <ms>` | 异步总超时 | 120000 |
-| `--count <n>` | 艺人模式歌曲数量 | 10 |
-| `--artist` | 艺人模式 | 关闭 |
 | `--outfile <path>` | 异步输出文件（**必须使用**） | - |
 
 ## 控制命令
@@ -119,7 +115,6 @@ sleep 12 && cat /tmp/music_out.json
 | 用户输入 | 动作 |
 |---|---|
 | `播放 歌曲名`、`play 歌曲名`、`放一首 歌曲名`、`我想听 歌曲名`、`给我放 歌曲名` | 播放单曲 |
-| `播放 歌手名`、`听 歌手名 的歌`、`歌手名 歌单` | 歌手模式（`--artist`） |
 | `暂停`、`pause` | 暂停 |
 | `继续播放`、`resume` | 恢复 |
 | `下一首`、`next` | 下一首 |

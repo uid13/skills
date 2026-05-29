@@ -12,16 +12,6 @@
 - **输出格式**：ESM (.mjs)
 - **目标 Node 版本**：22+
 
-### 关键变化（Vite 5 → Vite 8）
-
-| 项目 | Vite 5 | Vite 8 |
-|------|--------|--------|
-| 底层打包器 | Rollup (JS) | **Rolldown (Rust)** |
-| 配置项名 | `rollupOptions` | **`rolldownOptions`** |
-| 多 entry 行为 | 自动提取共享 chunk | 同（仍需程序化逐个构建避免） |
-| 输出扩展名 | `.js` (lib 模式) | `.js`（需 `.mjs` 时手动重命名） |
-| 构建速度 | ~650ms（4 入口） | **~270ms（4 入口）** ⚡ |
-
 ## 🏗️ 目录结构
 
 ```
@@ -110,7 +100,7 @@ dist/
 ### 2. 跨平台兼容
 
 所有脚本同时工作于 Windows / macOS / Linux：
-- Windows：PowerShell 或 Git Bash
+- Windows：Git Bash
 - macOS/Linux：任意 shell
 - ImageMagick 命令路径自动适配
 

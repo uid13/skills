@@ -327,8 +327,8 @@ node <skill-dir>/scripts/dist/info.mjs
 
 ### Q: 怎么安装 ImageMagick？
 
-**Windows（推荐用 mise，参考用户博客）**：
-```powershell
+**Windows（推荐用 mise）**：
+```bash
 # 用 mise 安装
 mise install github:ImageMagick/ImageMagick
 

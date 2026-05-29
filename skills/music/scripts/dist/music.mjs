@@ -8,6 +8,141 @@ import * as path from "node:path";
 import { resolve } from "node:path";
 import { spawn } from "node:child_process";
 import * as net from "node:net";
+//#region src/lib/platform/windows.ts
+/**
+* Windows Git Bash 策略
+* 
+* 使用 tasklist/taskkill 管理进程，命名管道 IPC，.exe 后缀
+*/
+var WindowsStrategy = class {
+	name = "windows";
+	exeSuffix = ".exe";
+	installHint = "winget install yt-dlp mpv";
+	async checkProcess(name) {
+		const result = await exec("tasklist", ["/FI", `IMAGENAME eq ${name}.exe`], {
+			timeout: 3e3,
+			noShell: true
+		});
+		return new RegExp(`${name}\\.exe`, "i").test(result.stdout);
+	}
+	async killProcess(name) {
+		await exec("taskkill", [
+			"/F",
+			"/IM",
+			`${name}.exe`
+		], {
+			timeout: 5e3,
+			noShell: true
+		});
+	}
+	getIpcPath(name) {
+		return `\\\\.\\pipe\\${name}`;
+	}
+	getTmpPath(file) {
+		return `/tmp/${file}`;
+	}
+	getMiseInstallsDir() {
+		return process.env.MISE_DATA_DIR ? `${process.env.MISE_DATA_DIR}/installs` : `${process.env.HOME || ""}/.mise/data/installs`;
+	}
+	getLocatorCommand() {
+		return ["where.exe", []];
+	}
+};
+//#endregion
+//#region src/lib/platform/linux.ts
+/**
+* Linux 策略
+* 
+* 使用 pgrep/pkill 管理进程，Unix socket IPC，无后缀
+*/
+var LinuxStrategy = class {
+	name = "linux";
+	exeSuffix = "";
+	installHint = "sudo apt install yt-dlp mpv";
+	async checkProcess(name) {
+		return (await exec("pgrep", ["-x", name], {
+			timeout: 3e3,
+			noShell: true
+		})).status === 0;
+	}
+	async killProcess(name) {
+		await exec("pkill", ["-x", name], {
+			timeout: 5e3,
+			noShell: true
+		});
+	}
+	getIpcPath(name) {
+		return `/tmp/${name}`;
+	}
+	getTmpPath(file) {
+		return `/tmp/${file}`;
+	}
+	getMiseInstallsDir() {
+		return `${process.env.HOME || ""}/.mise/data/installs`;
+	}
+	getLocatorCommand() {
+		return ["sh", ["-lc", "command -v"]];
+	}
+};
+//#endregion
+//#region src/lib/platform/macos.ts
+/**
+* macOS 策略
+* 
+* 使用 pgrep/pkill 管理进程，Unix socket IPC，无后缀
+*/
+var MacStrategy = class {
+	name = "macos";
+	exeSuffix = "";
+	installHint = "brew install yt-dlp mpv";
+	async checkProcess(name) {
+		return (await exec("pgrep", ["-x", name], {
+			timeout: 3e3,
+			noShell: true
+		})).status === 0;
+	}
+	async killProcess(name) {
+		await exec("pkill", ["-x", name], {
+			timeout: 5e3,
+			noShell: true
+		});
+	}
+	getIpcPath(name) {
+		return `/tmp/${name}`;
+	}
+	getTmpPath(file) {
+		return `/tmp/${file}`;
+	}
+	getMiseInstallsDir() {
+		return `${process.env.HOME || ""}/.mise/data/installs`;
+	}
+	getLocatorCommand() {
+		return ["sh", ["-lc", "command -v"]];
+	}
+};
+//#endregion
+//#region src/lib/platform/index.ts
+/**
+* 根据当前平台返回对应的策略实例
+* 
+* 不做 PowerShell 显式检测（PSModulePath 会被继承导致误判），
+* 如果在 PowerShell 中运行，bash 命令自然报错。
+*/
+function createPlatformStrategy() {
+	switch (process.platform) {
+		case "win32": return new WindowsStrategy();
+		case "linux": return new LinuxStrategy();
+		case "darwin": return new MacStrategy();
+		default: return new LinuxStrategy();
+	}
+}
+var _platform = null;
+/** 获取当前平台策略（单例） */
+function getPlatform() {
+	if (!_platform) _platform = createPlatformStrategy();
+	return _platform;
+}
+//#endregion
 //#region src/lib/utils.ts
 /**
 * music 技能工具函数库
@@ -17,38 +152,12 @@ import * as net from "node:net";
 * - 依赖检查（yt-dlp、mpv 是否可用）
 * - 错误输出（Markdown 格式，方便 Agent 转述）
 * - 路径解析（多策略查找可执行文件）
-* 
-* 优化点（相比原 JS 版本）：
-* 1. spawnSync → spawn + Promise（避免阻塞事件循环）
-* 2. 类型安全（SpawnOptions、ExecResult 明确定义）
-* 3. 进程管理缓存（resolveCache 使用 Map<string, string> 类型化）
-* 4. 错误处理统一（exitWithError 支持 Markdown 详情数组）
 */
 /**
-* 当前运行平台是否为 Windows
-*/
-var IS_WINDOWS = process.platform === "win32";
-/**
-* 不同系统下的依赖安装命令
-*/
-var INSTALL_COMMANDS = {
-	win32: "winget install yt-dlp yt-dlp mpv",
-	darwin: "brew install yt-dlp mpv",
-	linux: "sudo apt install yt-dlp mpv"
-};
-/**
-* 异步执行外部命令（统一处理编码、窗口隐藏和输出缓冲区大小）
+* 异步执行外部命令
 * 
-* 设计说明：
-* - 返回 Promise<ExecResult>，避免阻塞事件循环
-* - 默认 encoding: 'utf8'，windowsHide: true
-* - timeout 默认 30_000ms（30 秒），防止 yt-dlp 卡死
-* - maxBuffer 默认 20MB，防止超大输出导致内存溢出
-* 
-* @param command 命令路径（如 'yt-dlp'、'mpv'）
-* @param args 参数列表
-* @param options 扩展选项
-* @returns 执行结果（status、stdout、stderr）
+* Windows 下默认用 bash -c 包装（支持 mise 激活），
+* Linux/macOS 直接调用。noShell=true 时跳过包装。
 */
 async function exec(command, args, options = {}) {
 	const { timeout = 3e4, maxBuffer = 20 * 1024 * 1024, encoding = "utf8", windowsHide = true, noShell = false } = options;
@@ -64,7 +173,8 @@ async function exec(command, args, options = {}) {
 		};
 		let actualCommand = command;
 		let actualArgs = args;
-		if (IS_WINDOWS && !noShell) {
+		getPlatform();
+		if (process.platform === "win32" && !noShell) {
 			const cmdString = [command, ...args.map((a) => `"${a.replace(/"/g, "\\\"")}"`)].join(" ");
 			actualCommand = "bash";
 			actualArgs = ["-c", cmdString];
@@ -72,14 +182,12 @@ async function exec(command, args, options = {}) {
 		const child = spawn(actualCommand, actualArgs, spawnOptions);
 		let stdout = "";
 		let stderr = "";
-		let killed = false;
 		let timer = null;
 		child.stdout?.on("data", (chunk) => {
 			if (typeof chunk === "string") stdout += chunk;
 			else stdout += chunk.toString(encoding);
 			if (stdout.length + stderr.length > maxBuffer) {
 				child.kill("SIGKILL");
-				killed = true;
 				resolve({
 					status: null,
 					stdout,
@@ -94,7 +202,6 @@ async function exec(command, args, options = {}) {
 		});
 		if (timeout && timeout > 0) timer = setTimeout(() => {
 			child.kill("SIGKILL");
-			killed = true;
 			resolve({
 				status: null,
 				stdout,
@@ -107,8 +214,7 @@ async function exec(command, args, options = {}) {
 			resolve({
 				status: code,
 				stdout,
-				stderr,
-				error: killed ? void 0 : void 0
+				stderr
 			});
 		});
 		child.on("error", (err) => {
@@ -122,14 +228,6 @@ async function exec(command, args, options = {}) {
 		});
 	});
 }
-/**
-* 判断外部命令是否能正常执行版本查询
-* - 尝试执行 `command --version`，timeout 8 秒
-* - 如果 status === 0 且有输出（stdout 或 stderr），认为可用
-* 
-* @param command 命令路径
-* @returns 是否可用
-*/
 async function commandVersionWorks(command) {
 	const result = await exec(command, ["--version"], {
 		timeout: 8e3,
@@ -139,13 +237,7 @@ async function commandVersionWorks(command) {
 	return (result.stdout + result.stderr).trim().length > 0;
 }
 /**
-* 解析命令在 Windows PATH 中的所有可能路径（含扩展名组合）
-* 
-* 示例：
-* - yt-dlp → 'C:\Program Files\yt-dlp\yt-dlp.exe'、'C:\Program Files\yt-dlp\yt-dlp.bat'
-* 
-* @param command 命令名
-* @returns 候选路径列表（已去重）
+* Windows 下遍历 PATH 中所有可能的可执行文件路径
 */
 function windowsPathCandidates(command) {
 	const pathEnv = process.env.PATH || "";
@@ -153,23 +245,17 @@ function windowsPathCandidates(command) {
 	const extensions = path.extname(command) ? [""] : pathExt.split(";").filter(Boolean);
 	const candidates = [];
 	for (const dir of pathEnv.split(path.delimiter).filter(Boolean)) for (const ext of extensions) {
-		const lower = path.join(dir, `${command}${ext.toLowerCase()}`);
-		const upper = path.join(dir, `${command}${ext.toUpperCase()}`);
-		candidates.push(lower, upper);
+		candidates.push(path.join(dir, `${command}${ext.toLowerCase()}`));
+		candidates.push(path.join(dir, `${command}${ext.toUpperCase()}`));
 	}
 	return [...new Set(candidates)];
 }
 /**
 * 查找 mise 安装的真实可执行文件（绕过 shim）
-* mise shim 是 shell 脚本，直接执行会创建窗口
-* 
-* @param command 命令名（如 'yt-dlp'、'mpv'）
-* @returns 真实 exe 路径，找不到返回空字符串
 */
 function findMiseRealExecutable(command) {
-	const miseInstalls = path.join(os.homedir(), ".mise", "data", "installs");
-	const miseRoot = process.env.MISE_DATA_DIR || miseInstalls;
-	const installsDir = path.join(miseRoot, "installs");
+	const platform = getPlatform();
+	const installsDir = platform.getMiseInstallsDir();
 	if (!fs.existsSync(installsDir)) return "";
 	try {
 		for (const entry of fs.readdirSync(installsDir)) {
@@ -179,7 +265,7 @@ function findMiseRealExecutable(command) {
 			for (const ver of fs.readdirSync(entryDir)) {
 				const verDir = path.join(entryDir, ver);
 				if (!fs.statSync(verDir).isDirectory()) continue;
-				const exeName = IS_WINDOWS ? `${command}.exe` : command;
+				const exeName = `${command}${platform.exeSuffix}`;
 				const exePath = path.join(verDir, exeName);
 				if (fs.existsSync(exePath)) return exePath;
 			}
@@ -189,32 +275,18 @@ function findMiseRealExecutable(command) {
 }
 /**
 * 使用 where.exe / command -v 查找命令路径
-* - Windows：where.exe
-* - Linux/macOS：sh -lc 'command -v <name>'
-* 
-* @param command 命令名
-* @returns 候选路径列表
 */
 async function locatorCandidates(command) {
-	const locator = IS_WINDOWS ? ["where.exe", [command]] : ["sh", ["-lc", `command -v ${command}`]];
-	const result = await exec(locator[0], locator[1], {
+	const [locator, extraArgs] = getPlatform().getLocatorCommand();
+	const result = await exec(locator, [...extraArgs, command], {
 		timeout: 5e3,
 		noShell: true
 	});
 	if (result.status !== 0) return [];
 	return result.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
-/**
-* 命令解析结果缓存（避免重复查找）
-*/
 var resolveCache = /* @__PURE__ */ new Map();
-/**
-* 缓存文件路径（持久化到 tmpdir）
-*/
 var CACHE_FILE = path.join(os.tmpdir(), "music_executable_cache.json");
-/**
-* 从文件加载缓存
-*/
 function loadPersistentCache() {
 	try {
 		if (fs.existsSync(CACHE_FILE)) {
@@ -223,13 +295,9 @@ function loadPersistentCache() {
 		}
 	} catch {}
 }
-/**
-* 保存缓存到文件
-*/
 function savePersistentCache() {
 	try {
-		const data = Object.fromEntries(resolveCache);
-		fs.writeFileSync(CACHE_FILE, JSON.stringify(data), "utf8");
+		fs.writeFileSync(CACHE_FILE, JSON.stringify(Object.fromEntries(resolveCache)), "utf8");
 	} catch {}
 }
 loadPersistentCache();
@@ -237,15 +305,11 @@ loadPersistentCache();
 * 解析命令路径（多策略查找）
 * 
 * 查找顺序：
-* 1. 从 resolveCache 快速验证（最多 3 秒超时）
-* 2. 直接执行 `command --version`
-* 3. locatorCandidates（where.exe 或 command -v）
-* 4. windowsPathCandidates（仅限 Windows，遍历 PATH 组合）
-* 
-* 结果会被缓存（内存 + 持久化文件）
-* 
-* @param command 命令名
-* @returns 解析到的完整路径，如果找不到返回空字符串
+* 1. 缓存快速验证
+* 2. mise 安装目录（绕过 shim）
+* 3. 直接执行 --version
+* 4. locator（where.exe / command -v）
+* 5. Windows PATH 遍历
 */
 async function resolveExecutable(command) {
 	if (resolveCache.has(command)) {
@@ -257,29 +321,21 @@ async function resolveExecutable(command) {
 		resolveCache.delete(command);
 	}
 	let resolved = "";
-	if (IS_WINDOWS && !resolved) {
-		const misePath = findMiseRealExecutable(command);
-		if (misePath && await commandVersionWorks(misePath)) resolved = misePath;
-	}
-	if (await commandVersionWorks(command)) resolved = command;
-	else {
-		const locatorList = await locatorCandidates(command);
-		for (const candidate of locatorList) {
-			if (!candidate || path.isAbsolute(candidate) && !fs.existsSync(candidate)) continue;
-			if (await commandVersionWorks(candidate)) {
-				resolved = candidate;
-				break;
-			}
+	const misePath = findMiseRealExecutable(command);
+	if (misePath && await commandVersionWorks(misePath)) resolved = misePath;
+	if (!resolved && await commandVersionWorks(command)) resolved = command;
+	if (!resolved) for (const candidate of await locatorCandidates(command)) {
+		if (!candidate || path.isAbsolute(candidate) && !fs.existsSync(candidate)) continue;
+		if (await commandVersionWorks(candidate)) {
+			resolved = candidate;
+			break;
 		}
-		if (!resolved && IS_WINDOWS) {
-			const candidates = windowsPathCandidates(command);
-			for (const candidate of candidates) {
-				if (!candidate || path.isAbsolute(candidate) && !fs.existsSync(candidate)) continue;
-				if (await commandVersionWorks(candidate)) {
-					resolved = candidate;
-					break;
-				}
-			}
+	}
+	if (!resolved && process.platform === "win32") for (const candidate of windowsPathCandidates(command)) {
+		if (!candidate || path.isAbsolute(candidate) && !fs.existsSync(candidate)) continue;
+		if (await commandVersionWorks(candidate)) {
+			resolved = candidate;
+			break;
 		}
 	}
 	if (resolved) {
@@ -288,44 +344,24 @@ async function resolveExecutable(command) {
 	}
 	return resolved;
 }
-/**
-* 获取当前平台的依赖安装提示
-* 
-* @returns 安装命令（如 'brew install yt-dlp mpv'）
-*/
-function installHint() {
-	return INSTALL_COMMANDS[process.platform] || "Install yt-dlp and mpv with your system package manager.";
-}
-/**
-* 播放前检查必要依赖（yt-dlp、mpv）
-* 
-* - 控制命令不需要调用此函数，避免无关依赖阻塞控制操作
-* - 环境变量 MUSIC_SKIP_DEPS=1 可跳过检查（适用于已确认依赖正常的场景）
-* - 缺失任一依赖时，以 Markdown 格式输出安装指引
-* 
-* @throws 如果依赖缺失，退出进程（exit code 1）
-*/
 async function checkPlaybackDependencies() {
 	if (process.env.MUSIC_SKIP_DEPS === "1") return;
 	const missing = [];
 	if (!await resolveExecutable("yt-dlp")) missing.push("yt-dlp");
 	if (!await resolveExecutable("mpv")) missing.push("mpv");
-	if (missing.length > 0) exitWithError(`缺失依赖：\`${missing.join("`、`")}\``, [
-		"已尝试 PATH 查找和 `--version` 检查，但工具不可用。",
-		"请安装缺失工具或添加到 PATH，然后重新运行命令。",
-		"",
-		"```bash",
-		installHint(),
-		"```"
-	]);
+	if (missing.length > 0) {
+		const platform = getPlatform();
+		exitWithError(`缺失依赖：\`${missing.join("`、`")}\``, [
+			"已尝试 PATH 查找和 `--version` 检查，但工具不可用。",
+			"请安装缺失工具或添加到 PATH，然后重新运行命令。",
+			"",
+			"```bash",
+			platform.installHint,
+			"```"
+		]);
+	}
 }
-/**
-* 以 Markdown 格式输出错误，方便智能体直接转述给用户
-* 
-* @param message 错误消息（Markdown 格式）
-* @param details 补充信息数组（可以是提示文本或代码块）
-*/
-function markdownError(message, details = []) {
+function exitWithError(message, details = [], code = 1) {
 	const lines = [
 		"## 错误",
 		"",
@@ -333,53 +369,12 @@ function markdownError(message, details = []) {
 	];
 	if (details.length > 0) lines.push("", ...details);
 	console.error(lines.join("\n"));
-}
-/**
-* 输出错误并终止进程
-* 
-* @param message 错误消息
-* @param details 补充信息数组
-* @param code 退出码（默认 1）
-*/
-function exitWithError(message, details = [], code = 1) {
-	markdownError(message, details);
 	process.exit(code);
 }
-/**
-* 异步等待指定毫秒数
-* 
-* @param ms 等待时间
-*/
 async function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
-//#endregion
-//#region src/lib/mpv.ts
-/**
-* mpv 播放器控制模块
-* 
-* 包含：
-* - 进程管理（启动、停止、状态检查）
-* - IPC 通信（通过 Unix socket 或 Windows 命名管道）
-* - 命令映射（控制命令 → mpv JSON-RPC）
-* - 播放验证（检查 time-pos 确认实际播放）
-* 
-* 优化点（相比原 JS 版本）：
-* 1. 类型安全（MpvCommandRequest、MpvCommandResponse 明确定义）
-* 2. IPC 超时机制（默认 5000ms，避免卡死）
-* 3. 进程管理增强（启动等待、停止等待、PID 检查）
-* 4. 错误处理统一（所有 IPC 错误返回 MpvSendResult 结构）
-*/
-/**
-* mpv IPC 服务名（Unix socket 或命名管道的标识符）
-*/
-var PIPE_NAME = "music-mpv-ipc";
-/**
-* mpv IPC 连接路径
-* - Windows: \\.\pipe\<name>
-* - Linux/macOS: /tmp/<name>
-*/
-var IPC_PATH = IS_WINDOWS ? `\\\\.\\pipe\\${PIPE_NAME}` : `/tmp/${PIPE_NAME}`;
+var IPC_PATH = getPlatform().getIpcPath("music-mpv-ipc");
 /**
 * 控制命令对应的中文标签（用于输出展示）
 */
@@ -403,40 +398,15 @@ var LABELS = {
 var mpvProcess = null;
 /**
 * 检查 mpv 进程是否正在运行
-* - Windows：tasklist 查找 mpv.exe
-* - Linux/macOS：pgrep -x mpv
-* 
-* @returns 是否运行
 */
 async function mpvIsRunning() {
-	const result = IS_WINDOWS ? await exec("tasklist", ["/FI", "IMAGENAME eq mpv.exe"], {
-		timeout: 3e3,
-		noShell: true
-	}) : await exec("pgrep", ["-x", "mpv"], {
-		timeout: 3e3,
-		noShell: true
-	});
-	if (IS_WINDOWS) return /mpv\.exe/i.test(result.stdout);
-	return result.status === 0;
+	return getPlatform().checkProcess("mpv");
 }
 /**
 * 停止所有 mpv 进程（避免多实例竞争 IPC 端口）
-* - Windows：taskkill /F /IM mpv.exe
-* - Linux/macOS：pkill -x mpv
 */
 async function killMpv() {
-	if (IS_WINDOWS) await exec("taskkill", [
-		"/F",
-		"/IM",
-		"mpv.exe"
-	], {
-		timeout: 5e3,
-		noShell: true
-	});
-	else await exec("pkill", ["-x", "mpv"], {
-		timeout: 5e3,
-		noShell: true
-	});
+	await getPlatform().killProcess("mpv");
 	mpvProcess = null;
 }
 /**
@@ -566,8 +536,9 @@ async function getPlaybackStatus() {
 * 
 * @returns 是否播放成功
 */
-async function verifyPlayback() {
-	for (let i = 0; i < 30; i++) {
+async function verifyPlayback(timeoutMs = 15e3) {
+	const maxIterations = Math.ceil(timeoutMs / 500);
+	for (let i = 0; i < maxIterations; i++) {
 		await sleep(500);
 		const result = await sendIpc({ command: ["get_property", "time-pos"] });
 		if (!result.ok || !result.response) continue;
@@ -1094,10 +1065,8 @@ function isReliableMatch(best) {
 * @returns 规范化后的绝对路径
 */
 function normalizeOutfile(filePath) {
-	if (IS_WINDOWS) {
-		if (filePath.startsWith("/tmp/") || filePath.startsWith("/tmp\\")) return resolve(tmpdir(), filePath.slice(5));
-		if (filePath === "/tmp") return tmpdir();
-	}
+	if (filePath.startsWith("/tmp/") || filePath.startsWith("/tmp\\")) return resolve(tmpdir(), filePath.slice(5));
+	if (filePath === "/tmp") return tmpdir();
 	return filePath;
 }
 /**
@@ -1134,7 +1103,7 @@ async function playCommand(query, options) {
 		outputAction("评分候选歌曲...", "评分");
 		const scored = scoreAndRank(query, results);
 		if (scored.length === 0) {
-			outputError("无法找到匹配的歌曲（评分过低）", ["请尝试更具体的搜索词"], "评分");
+			outputError("未找到匹配的歌曲（评分过低）", ["请尝试更具体的搜索词"], "评分");
 			process.exit(1);
 		}
 		const bestPick = pickBestSong(scored);
@@ -1249,7 +1218,7 @@ async function statusCommand(options) {
 }
 var program = new Command();
 program.name("music").description("播放、暂停、控制在线音乐").version("1.0.0");
-program.command("play [query..]", { isDefault: true }).description("播放歌曲（默认命令）").option("--artist", "艺人模式：播放指定艺人的歌曲", false).option("--count <n>", "艺人模式下的歌曲数量", parseInt, 10).option("-j, --json", "JSON 输出模式（供 Agent 解析）", false).option("--timeout <ms>", "超时时间（毫秒）", parseInt, DEFAULT_TIMEOUT).option("--outfile <path>", "将歌曲信息写入文件").action((query, options) => {
+program.command("play [query..]", { isDefault: true }).description("播放歌曲（默认命令）").option("-j, --json", "JSON 输出模式（供 Agent 解析）", false).option("--timeout <ms>", "超时时间（毫秒）", parseInt, DEFAULT_TIMEOUT).option("--outfile <path>", "将歌曲信息写入文件").action((query, options) => {
 	const queryArr = Array.isArray(query) ? query : query ? [String(query)] : [];
 	const queryStr = queryArr.length > 0 ? queryArr.join(" ") : "";
 	if (!queryStr) {
@@ -1258,7 +1227,7 @@ program.command("play [query..]", { isDefault: true }).description("播放歌曲
 	}
 	playCommand(queryStr, options);
 });
-var controlActions = [
+[
 	"pause",
 	"resume",
 	"toggle-pause",
@@ -1270,25 +1239,13 @@ var controlActions = [
 	"loop",
 	"loop-off",
 	"stop"
-];
-controlActions.forEach((action) => {
+].forEach((action) => {
 	program.command(action).description(`执行 ${action} 控制命令`).option("-j, --json", "JSON 输出模式", false).action((options) => {
 		controlCommand(action, options);
 	});
 });
 program.command("status").description("查询播放状态").option("-j, --json", "JSON 输出模式", false).action((options) => {
 	statusCommand(options);
-});
-program.command("control [action]").description("执行控制命令（兼容旧版）").option("-j, --json", "JSON 输出模式", false).action((action, options) => {
-	if (!action) {
-		outputError("请指定控制命令", [`可用命令: ${controlActions.join(", ")}`], "错误");
-		process.exit(1);
-	}
-	if (!controlActions.includes(action)) {
-		outputError(`未知的控制命令: ${action}`, [`可用命令: ${controlActions.join(", ")}`], "错误");
-		process.exit(1);
-	}
-	controlCommand(action, options);
 });
 program.parse();
 //#endregion

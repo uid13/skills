@@ -23,25 +23,14 @@ import type {
   ControlAction,
   ControlCommandMap,
 } from './types.js';
-import { IS_WINDOWS, exec, sleep } from './utils.js';
+import { exec, sleep, getPlatform } from './utils.js';
 
 // ============================================================
 // IPC 通信配置
 // ============================================================
 
-/**
- * mpv IPC 服务名（Unix socket 或命名管道的标识符）
- */
 const PIPE_NAME = 'music-mpv-ipc';
-
-/**
- * mpv IPC 连接路径
- * - Windows: \\.\pipe\<name>
- * - Linux/macOS: /tmp/<name>
- */
-export const IPC_PATH = IS_WINDOWS
-  ? `\\\\.\\pipe\\${PIPE_NAME}`
-  : `/tmp/${PIPE_NAME}`;
+export const IPC_PATH = getPlatform().getIpcPath(PIPE_NAME);
 
 // ============================================================
 // 控制命令映射
@@ -94,33 +83,16 @@ let mpvProcess: ChildProcess | null = null;
 
 /**
  * 检查 mpv 进程是否正在运行
- * - Windows：tasklist 查找 mpv.exe
- * - Linux/macOS：pgrep -x mpv
- * 
- * @returns 是否运行
  */
 export async function mpvIsRunning(): Promise<boolean> {
-  const result = IS_WINDOWS
-    ? await exec('tasklist', ['/FI', 'IMAGENAME eq mpv.exe'], { timeout: 3_000, noShell: true })
-    : await exec('pgrep', ['-x', 'mpv'], { timeout: 3_000, noShell: true });
-
-  if (IS_WINDOWS) {
-    return /mpv\.exe/i.test(result.stdout);
-  }
-  return result.status === 0;
+  return getPlatform().checkProcess('mpv');
 }
 
 /**
  * 停止所有 mpv 进程（避免多实例竞争 IPC 端口）
- * - Windows：taskkill /F /IM mpv.exe
- * - Linux/macOS：pkill -x mpv
  */
 export async function killMpv(): Promise<void> {
-  if (IS_WINDOWS) {
-    await exec('taskkill', ['/F', '/IM', 'mpv.exe'], { timeout: 5_000, noShell: true });
-  } else {
-    await exec('pkill', ['-x', 'mpv'], { timeout: 5_000, noShell: true });
-  }
+  await getPlatform().killProcess('mpv');
   mpvProcess = null;
 }
 
@@ -278,9 +250,9 @@ export async function getPlaybackStatus(): Promise<'playing' | 'paused' | null> 
  * 
  * @returns 是否播放成功
  */
-export async function verifyPlayback(): Promise<boolean> {
-  // 等待 mpv 启动并加载音频流（最多 15 秒）
-  for (let i = 0; i < 30; i++) {
+export async function verifyPlayback(timeoutMs = 15_000): Promise<boolean> {
+  const maxIterations = Math.ceil(timeoutMs / 500);
+  for (let i = 0; i < maxIterations; i++) {
     await sleep(500);
 
     const result = await sendIpc({ command: ['get_property', 'time-pos'] });

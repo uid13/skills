@@ -24,7 +24,7 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: true,
     minify: false,
-    rollupOptions: {
+    rolldownOptions: {
       external: [/^node:/],
       output: {
         entryFileNames: '[name].mjs',

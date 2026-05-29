@@ -94,13 +94,13 @@ node skills/imagegen-magick/scripts/dist/info.mjs
 npm run dev
 
 # 或仅监听单个技能
-npm -w imagegen-magick dev
+npm -w imagegen-magick-src dev
 ```
 
 ## 📖 各技能文档
 
 - [imagegen-magick](./skills/imagegen-magick/README.md) — 程序化图像生成
-- [music](./skills/music/README.md) — 在线音乐播放
+- [music](./skills/music/SKILL.md) — 在线音乐播放
 
 ## 🤝 贡献
 
