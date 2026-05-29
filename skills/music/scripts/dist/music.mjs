@@ -430,6 +430,20 @@ async function mpvIsRunning() {
 	return result.status === 0;
 }
 /**
+* 停止所有 mpv 进程（避免多实例竞争 IPC 端口）
+* - Windows：taskkill /F /IM mpv.exe
+* - Linux/macOS：pkill -x mpv
+*/
+async function killMpv() {
+	if (IS_WINDOWS) await exec("taskkill", [
+		"/F",
+		"/IM",
+		"mpv.exe"
+	], { timeout: 5e3 });
+	else await exec("pkill", ["-x", "mpv"], { timeout: 5e3 });
+	mpvProcess = null;
+}
+/**
 * 启动 mpv 进程并等待其 IPC 服务就绪
 * 
 * 参数说明：
@@ -1103,7 +1117,7 @@ function normalizeOutfile(filePath) {
 /**
 * 默认超时时间（毫秒）
 */
-var DEFAULT_TIMEOUT = 3e4;
+var DEFAULT_TIMEOUT = 12e4;
 /**
 * play 命令：播放歌曲
 * 
@@ -1143,53 +1157,110 @@ async function playCommand(query, options) {
 			process.exit(1);
 		}
 		const best = bestPick.song;
-		outputAction("提取音频流 URL...", "播放");
-		const candidateUrl = best.id ? `https://www.youtube.com/watch?v=${best.id}` : best.webpage_url || best.url;
-		if (!candidateUrl) {
-			outputError("无法从搜索结果中获取视频标识", ["请尝试更具体的搜索词"], "播放");
-			process.exit(1);
-		}
-		const directUrl = await getAudioStreamUrl(candidateUrl);
-		const playbackUrl = directUrl || candidateUrl;
-		if (!directUrl) outputInfo("音频 URL 提取失败，使用 YouTube URL 播放（需要 mpv 支持 yt-dl hook）", "播放");
 		outputAction("正在启动 mpv...", "播放");
-		if (await mpvIsRunning()) {
-			outputAction("停止当前播放...", "播放");
-			await sendIpc({ command: ["stop"] });
-			await waitForMpvToStop();
-		}
 		if (options.outfile) {
 			const normalizedOutfile = normalizeOutfile(options.outfile);
-			const startedInfo = {
-				status: "started",
+			const songInfo = {
 				title: best.title || query,
 				artist: best.artist || best.uploader || "未知艺人",
-				duration: best.duration,
+				duration: best.duration
+			};
+			const startedInfo = {
+				status: "started",
+				...songInfo,
 				timestamp: (/* @__PURE__ */ new Date()).toISOString()
 			};
 			writeFileSync(normalizedOutfile, JSON.stringify(startedInfo, null, 2));
-			outputSuccess("播放已启动（started），歌曲信息将稍后更新", "播放");
-			startMpv([playbackUrl]);
-			const verifyScript = `
+			outputSuccess("播放已启动（started），正在提取音频流 URL 并开始播放", "播放");
+			const candidateUrl = best.id ? `https://www.youtube.com/watch?v=${best.id}` : best.webpage_url || best.url;
+			if (!candidateUrl) {
+				outputError("无法从搜索结果中获取视频标识", ["请尝试更具体的搜索词"], "播放");
+				process.exit(1);
+			}
+			const detachedScript = `
         const net = require('node:net');
         const fs = require('node:fs');
+        const child_process = require('node:child_process');
         
         const IPC_PATH = process.platform === 'win32' 
           ? '\\\\\\\\.\\\\pipe\\\\music-mpv-ipc' 
           : '/tmp/music-mpv-ipc';
         const OUTFILE = ${JSON.stringify(normalizedOutfile)};
-        const SONG_INFO = ${JSON.stringify(startedInfo)};
+        const SONG_INFO = ${JSON.stringify(songInfo)};
+        const CANDIDATE_URL = ${JSON.stringify(candidateUrl)};
         
-        async function sendIpc(cmd) {
+        function execShell(cmd, args, timeoutMs) {
+          return new Promise((resolve) => {
+            const child = child_process.spawn(cmd, args, {
+              stdio: ['ignore', 'pipe', 'pipe'],
+              windowsHide: true,
+              timeout: timeoutMs
+            });
+            let stdout = '';
+            child.stdout.on('data', (d) => stdout += d.toString());
+            child.on('close', (code) => resolve({ code, stdout }));
+            child.on('error', () => resolve({ code: null, stdout: '' }));
+            setTimeout(() => { try { child.kill('SIGKILL'); } catch{} resolve({ code: null, stdout: '' }); }, timeoutMs + 1000);
+          });
+        }
+        
+        // 提取音频流直链
+        async function extractAudioUrl(videoUrl) {
+          const { code, stdout } = await execShell(
+            process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp',
+            [videoUrl, '-f', 'bestaudio', '-g', '--no-download', '--no-warnings'],
+            45000
+          );
+          return (code === 0 && stdout.trim()) ? stdout.trim().split('\\n')[0] : null;
+        }
+        
+        // 停止所有现有的 mpv 进程
+        async function killMpv() {
+          if (process.platform === 'win32') {
+            await execShell('taskkill', ['/F', '/IM', 'mpv.exe'], 5000);
+          } else {
+            await execShell('pkill', ['-x', 'mpv'], 5000);
+          }
+        }
+        
+        // 等待 mpv 停止运行
+        async function waitForMpvToStop() {
+          for (let i = 0; i < 15; i++) {
+            const { code } = await execShell(
+              process.platform === 'win32' ? 'tasklist' : 'pgrep',
+              process.platform === 'win32' ? ['/FI', 'IMAGENAME eq mpv.exe'] : ['-x', 'mpv'],
+              3000
+            );
+            if (process.platform === 'win32') {
+              if (code === 0 && !/mpv\\.exe/i.test('')) {
+                // tasklist 总是返回 0，检查 stdout 是否包含 mpv.exe
+                const { stdout } = await execShell('tasklist', ['/FI', 'IMAGENAME eq mpv.exe'], 3000);
+                if (!/mpv\\.exe/i.test(stdout)) return;
+              }
+            } else {
+              if (code !== 0) return;
+            }
+            await new Promise(r => setTimeout(r, 500));
+          }
+        }
+        
+        function startMpv(args) {
+          const child = child_process.spawn(process.platform === 'win32' ? 'mpv.exe' : 'mpv',
+            ['--no-video', '--keep-open-pause=no', '--ytdl-format=bestaudio/best', '--ytdl',
+             '--input-ipc-server=' + IPC_PATH, ...args],
+            { stdio: ['ignore', 'ignore', 'ignore'], detached: true, windowsHide: true }
+          );
+          if (child.unref) child.unref();
+          return child;
+        }
+        
+        function sendIpc(cmd) {
           return new Promise((resolve) => {
             const socket = net.createConnection(IPC_PATH);
             const chunks = [];
             let settled = false;
-            
             socket.setTimeout(3000);
-            socket.on('connect', () => {
-              socket.write(JSON.stringify(cmd) + '\\n');
-            });
+            socket.on('connect', () => socket.write(JSON.stringify(cmd) + '\\n'));
             socket.on('data', (chunk) => {
               chunks.push(chunk);
               const data = Buffer.concat(chunks).toString('utf8').trim();
@@ -1210,7 +1281,6 @@ async function playCommand(query, options) {
                 finish(Boolean(data), null, data ? null : 'No IPC response');
               }
             });
-            
             function finish(ok, response, error) {
               if (settled) return;
               settled = true;
@@ -1220,8 +1290,8 @@ async function playCommand(query, options) {
           });
         }
         
-        async function verify() {
-          const deadline = Date.now() + 15000;
+        async function verifyPlayback() {
+          const deadline = Date.now() + 20000;
           while (Date.now() < deadline) {
             const res = await sendIpc({ command: ['get_property', 'time-pos'] });
             if (res.ok) return true;
@@ -1230,28 +1300,54 @@ async function playCommand(query, options) {
           return false;
         }
         
+        function updateOutfile(status) {
+          const info = { ...SONG_INFO, status, timestamp: new Date().toISOString() };
+          try { fs.writeFileSync(OUTFILE, JSON.stringify(info, null, 2)); } catch {}
+        }
+        
         (async () => {
-          const ok = await verify();
-          const updatedInfo = {
-            ...SONG_INFO,
-            status: ok ? 'success' : 'failed',
-            timestamp: new Date().toISOString()
-          };
-          try {
-            fs.writeFileSync(OUTFILE, JSON.stringify(updatedInfo, null, 2));
-          } catch (err) {
-            // 写文件失败也忽略
-          }
+          // 1. 提取直链（20-25 秒）
+          let playbackUrl = CANDIDATE_URL;
+          const directUrl = await extractAudioUrl(CANDIDATE_URL);
+          if (directUrl) playbackUrl = directUrl;
+          
+          // 2. 停止旧播放
+          await killMpv();
+          await waitForMpvToStop();
+          
+          // 3. 启动 mpv
+          startMpv([playbackUrl]);
+          
+          // 4. 等待 mpv 启动（3 秒）
+          await new Promise(r => setTimeout(r, 3000));
+          
+          // 5. 验证播放
+          const ok = await verifyPlayback();
+          updateOutfile(ok ? 'success' : 'failed');
         })();
       `;
 			const { spawn } = await import("node:child_process");
-			spawn(process.execPath, ["-e", verifyScript], {
+			spawn(process.execPath, ["-e", detachedScript], {
 				detached: true,
 				stdio: "ignore",
 				windowsHide: true
 			}).unref();
 			process.exit(0);
 		}
+		if (await mpvIsRunning()) {
+			outputAction("停止当前播放...", "播放");
+			await killMpv();
+			await waitForMpvToStop();
+		}
+		outputAction("提取音频流 URL...", "播放");
+		const candidateUrl = best.id ? `https://www.youtube.com/watch?v=${best.id}` : best.webpage_url || best.url;
+		if (!candidateUrl) {
+			outputError("无法从搜索结果中获取视频标识", ["请尝试更具体的搜索词"], "播放");
+			process.exit(1);
+		}
+		const directUrl = await getAudioStreamUrl(candidateUrl);
+		const playbackUrl = directUrl || candidateUrl;
+		if (!directUrl) outputInfo("音频 URL 提取失败，使用 YouTube URL 播放（需要 mpv 支持 yt-dl hook）", "播放");
 		startMpv([playbackUrl]);
 		outputAction("等待播放...", "播放");
 		if (!await verifyPlayback(timeout)) {
@@ -1284,6 +1380,12 @@ async function controlCommand(action, options) {
 		if (!await mpvIsRunning()) {
 			outputError("mpv 未在运行", ["请先启动播放"], "状态检查");
 			process.exit(1);
+		}
+		if (action === "stop") {
+			await killMpv();
+			await waitForMpvToStop();
+			outputControlResult(action, "success");
+			process.exit(0);
 		}
 		const result = await sendIpc({ command: [action.toLowerCase()] });
 		if (result.error) {

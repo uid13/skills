@@ -19,18 +19,36 @@ license: MIT
 ## 处理流程
 
 1. **判断用户意图**
-   - 明确搜索（歌曲名、艺人、心情、场景）：直接播放
+   - 明确搜索（歌曲名、艺人、心情、场景、曲风）：**构造搜索词**后播放
    - 需要澄清（"放点歌"、"随便听听"）：先问 1-2 个问题
    - 播放控制（暂停、继续、下一首等）：直接执行
 
-2. **执行播放或控制命令**
-   - 播放：`node <skill-dir>/scripts/dist/music.mjs play <query>`
-   - 控制：`node <skill-dir>/scripts/dist/music.mjs <action>`
-   - 命令快速返回（< 5秒），mpv 在后台持续播放
+2. **构造搜索词（关键步骤，不能跳过）**
+   - **必须由模型对用户输入进行清洗和结构化**，不要直接把用户原始输入传给脚本
+   - 去除标点符号、表情、错别字、多余空格
+   - 识别歌曲名 / 艺人名 / 场景 / 曲风，按最佳搜索策略组合
+   - 判断是否使用歌手模式（`--artist`）
+   - 示例：
+     | 用户原始输入 | 模型构造的搜索词 | 调用参数 |
+     |-------------|----------------|---------|
+     | `播放 泡沫，邓紫棋` | `泡沫 邓紫棋` | `play "泡沫 邓紫棋"` |
+     | `play Somewhere - Within Temptation` | `Within Temptation Somewhere` | `play "Within Temptation Somewhere"` |
+     | `来点轻音乐!!!!` | `轻音乐` | `play "轻音乐"` |
+     | `听周杰伦的歌` | 识别为歌手模式 | `play "周杰伦" --artist` |
+     | `播一下晴天` | `周杰伦 晴天` | `play "周杰伦 晴天"`（模型推断歌名对应艺人） |
+     | `适合写代码的 电子音乐` | `电子音乐 适合写代码` | `play "电子音乐 适合写代码"` |
+   - **重要**：模型必须先判断用户的真实意图，再生成干净的搜索词，而不是逐字转发
 
-3. **解析输出**
-   - 转述给用户（如 "正在播放：Numb - Linkin Park"）
-   - 补充歌曲简介（基于歌名、艺人、你的知识）
+3. **启动播放（detached launch，避免被 bash 工具杀死）**
+   - **Windows (pwsh)**：使用 `Start-Process ... -WindowStyle Hidden` 完全 detached
+   - **Linux / macOS / Git Bash**：使用 `node ... &` 放后台
+   - **关键**：脚本本身会运行数秒甚至数十秒（搜索 + mpv 启动），**绝对不能让 bash 工具同步等待**，否则会被超时中断并触发 `ChildProcess.kill` 杀死整个 Node 进程（包括已启动的 mpv）
+   - 通过 `--outfile` 参数异步获取结果
+
+4. **解析输出**
+   - Agent 等待 8-15 秒，读取 outfile 文件
+   - 转述给用户歌曲信息（如 "正在播放：Numb - Linkin Park"）
+   - 补充歌曲简介（基于歌名、艺人、模型的知识）
 
 ## 意图识别
 
@@ -60,53 +78,68 @@ license: MIT
 
 ## 播放命令
 
-播放命令会快速返回（< 5秒），mpv 进程在后台持续播放。命令输出包含歌曲信息（标题、艺人、时长）。
+### ⚠️ 必须使用 detached launch（强制）
 
-### 基本用法
+**播放命令绝对不能直接同步调用**，否则会触发 bash 工具超时杀死 Node.js 进程。必须使用以下两种方式之一：
 
+**Windows PowerShell (pwsh) - 推荐**：
+```powershell
+Start-Process node -ArgumentList "<skill-dir>\scripts\dist\music.mjs","play","<构造好的搜索词>","--outfile","$env:TEMP\music_out.json" -WindowStyle Hidden
+```
+关键：不加 `-Wait`，PowerShell 会立即退出，node 在后台继续搜索和播放。
+
+**Linux / macOS / Git Bash**：
 ```bash
-# 播放歌曲（默认命令，可省略 play）
-node <skill-dir>/scripts/dist/music.mjs play "歌曲名或搜索词"
-node <skill-dir>/scripts/dist/music.mjs "歌曲名或搜索词"
+node <skill-dir>/scripts/dist/music.mjs play "<构造好的搜索词>" --outfile /tmp/music_out.json &
+```
+加 `&` 让 node 在后台运行，shell 立即退出。
 
-# 播放艺人的歌曲（多首）
-node <skill-dir>/scripts/dist/music.mjs play "歌手名" --artist --count 5
+### 完整调用流程（Agent 必须遵循）
+
+```
+1. 模型构造搜索词（见上节"构造搜索词"）
+2. 模型执行 detached launch 命令（使用上面的 Start-Process 或 & 方式）
+3. 命令立即返回，模型立即响应用户："正在启动播放..."
+4. 模型等待 10-15 秒
+5. 模型读取 outfile 文件
+6. 模型转述给用户歌曲信息 + 补充简介
 ```
 
-### 全局选项
+### 读取 outfile
+
+命令启动后，等待 10-15 秒再读取：
+
+**Windows PowerShell**：
+```powershell
+Start-Sleep -Seconds 12
+Get-Content "$env:TEMP\music_out.json"
+```
+
+**Linux / macOS / Git Bash**：
+```bash
+sleep 12
+cat /tmp/music_out.json
+```
+
+如果 `status` 仍为 `"started"`，再等 5-10 秒重读；如果 30 秒后仍未变化，视为失败。
+
+### 选项
 
 | 选项 | 说明 | 默认值 |
 |------|------|--------|
 | `--json` | JSON 输出模式（供 Agent 解析） | 关闭 |
-| `--timeout <ms>` | 超时时间（毫秒） | 30000 |
+| `--timeout <ms>` | 异步模式下的总超时（毫秒） | 120000 |
 | `--count <n>` | 艺人模式下的歌曲数量 | 10 |
 | `--artist` | 艺人模式（播放指定艺人的多首歌曲） | 关闭 |
-| `--outfile <path>` | 将歌曲信息异步写入文件（不阻塞命令） | - |
-| `--help` | 显示帮助信息 | - |
-| `--version` | 显示版本号 | - |
+| `--outfile <path>` | 异步输出文件路径（**必须使用**） | - |
 
-### 异步模式（推荐 Agent 使用）
+### 路径兼容性
 
-使用 `--outfile` 参数可以让播放命令**立即返回**，歌曲信息异步写入指定文件：
+- `--outfile` 路径在 Windows 下 `/tmp/xxx` 会自动映射为系统临时目录
+- 推荐使用 `$env:TEMP\music_out.json`（Windows）或 `/tmp/music_out.json`（Linux/macOS）
 
-```bash
-# 1. 启动播放（命令立即返回，不阻塞）
-node <skill-dir>/scripts/dist/music.mjs play "歌曲名" --outfile /tmp/music_play.json
+### outfile 文件格式
 
-# 2. agent 立即响应用户："正在启动播放..."
-# 3. 等待 1-2 秒后读取文件，获取歌曲信息
-node -e "const fs=require('fs'); console.log(fs.readFileSync('/tmp/music_play.json','utf-8'))"
-
-# 4. 转述歌曲信息给用户："正在播放：Numb - Linkin Park (3:45)"
-```
-
-**路径兼容性说明**：
-- `--outfile` 路径支持跨平台自动映射
-- Windows 下 `/tmp/xxx` 会自动转换为系统临时目录（如 `C:\Users\xxx\AppData\Local\Temp\xxx`）
-- 推荐使用 `/tmp/xxx` 格式，保证 Git Bash / PowerShell / cmd 都能工作
-- 也可以直接使用 Windows 绝对路径（如 `C:\temp\music.json`）
-
-**outfile 文件格式**：
 ```json
 {
   "status": "started" | "success" | "failed",
@@ -118,37 +151,19 @@ node -e "const fs=require('fs'); console.log(fs.readFileSync('/tmp/music_play.js
 ```
 
 **状态流转**：
-- `started`：播放已启动，歌曲信息可用（立即写入）
-- `success`：mpv 验证成功，音频流正常播放（1-2 秒后更新）
-- `failed`：mpv 启动失败或音频流无法播放（1-2 秒后更新）
+- `started`：播放流程已启动，歌曲信息可用
+- `success`：mpv 启动成功并验证音频流正常播放（10-15 秒后更新）
+- `failed`：mpv 启动失败或音频流无法播放（10-15 秒后更新）
 
-**推荐流程**：
-1. 启动播放命令，输出 "started" 状态
-2. Agent 立即告知用户："播放已启动..."
-3. 后台等待 1-2 秒，读取 outfile
-4. 如果状态为 "success"，补充歌曲信息给用户
-5. 如果状态为 "failed"，提示用户播放失败
+### 完整示例（Agent 视角）
 
-### 示例
-
-```bash
-# 播放单曲（同步模式，阻塞等待播放验证）
-node <skill-dir>/scripts/dist/music.mjs play "Numb"
-node <skill-dir>/scripts/dist/music.mjs play "周杰伦 晴天"
-node <skill-dir>/scripts/dist/music.mjs play "适合写代码的英文歌"
-
-# 播放艺人歌曲（默认 10 首）
-node <skill-dir>/scripts/dist/music.mjs play "Linkin Park" --artist
-node <skill-dir>/scripts/dist/music.mjs play "周杰伦" --artist --count 5
-
-# JSON 输出模式
-node <skill-dir>/scripts/dist/music.mjs play "Numb" --json
-
-# 异步模式（推荐，不阻塞 agent）
-node <skill-dir>/scripts/dist/music.mjs play "Numb" --outfile /tmp/music.json
-# → 命令立即返回，写入 "started" 状态
-# → 1-2 秒后更新为 "success" 或 "failed"
-```
+| 用户输入 | 模型构造 | Agent 执行的命令 |
+|---------|---------|----------------|
+| `播放 泡沫，邓紫棋` | `泡沫 邓紫棋` | `Start-Process node -ArgumentList "music.mjs","play","泡沫 邓紫棋","--outfile","$env:TEMP\music_out.json" -WindowStyle Hidden` |
+| `play Somewhere - Within Temptation` | `Within Temptation Somewhere` | `Start-Process node -ArgumentList "music.mjs","play","Within Temptation Somewhere","--outfile","$env:TEMP\music_out.json" -WindowStyle Hidden` |
+| `来点轻音乐` | `轻音乐` | `Start-Process node -ArgumentList "music.mjs","play","轻音乐","--outfile","$env:TEMP\music_out.json" -WindowStyle Hidden` |
+| `听周杰伦的歌` | 歌手模式 | `Start-Process node -ArgumentList "music.mjs","play","周杰伦","--artist","--outfile","$env:TEMP\music_out.json" -WindowStyle Hidden` |
+| `放点歌` | - | 先问用户：`想听什么心情或场景的？偏中文还是英文？` |
 
 ### 输出格式
 
@@ -227,26 +242,6 @@ node <skill-dir>/scripts/dist/music.mjs control status
 ```
 
 可通过环境变量 `MUSIC_SKIP_DEPS=1` 跳过依赖检查（仅用于调试）。
-
-## Windows PowerShell 兼容性
-
-在 Windows PowerShell 中，直接调用 Node.js 脚本可能会因为 PowerShell 的管道处理而卡住。推荐使用：
-
-### 方法 1：后台启动（推荐）
-
-```powershell
-Start-Process node -ArgumentList "<skill-dir>\scripts\dist\music.mjs","play","歌曲名" -WindowStyle Hidden
-```
-
-`Start-Process` 会在后台启动 Node 进程，PowerShell 立即返回，不会卡住。
-
-### 方法 2：使用 cmd.exe 包装
-
-```powershell
-cmd /c node <skill-dir>\scripts\dist\music.mjs play "歌曲名"
-```
-
-通过 cmd.exe 调用可以规避 PowerShell 的某些问题。
 
 ## 用户指令映射
 
