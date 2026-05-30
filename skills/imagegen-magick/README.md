@@ -126,7 +126,7 @@ imagegen-magick/
 │   ├── layouts.md                    # 布局模式配方
 │   ├── decorations.md                # 装饰元素库
 │   ├── imagemagick-commands.md       # IM 命令参考
-│   └── font-handling.md              # 字体处理与 Fallback 指南
+│   └── font-handling.jsonc          # 字体链配置（由 font-chain.mjs 生成）
 ├── examples/                         # 完整场景示例
 │   └── wechat-article-cover.md       # 微信公众号封面示例
 └── scripts/dist/                     # 预编译的 CLI 工具（零依赖）
@@ -137,7 +137,9 @@ imagegen-magick/
     ├── check-fonts.mjs
     ├── check-fonts.mjs.map
     ├── scaffold.mjs
-    └── scaffold.mjs.map
+    ├── scaffold.mjs.map
+    ├── font-chain.mjs
+    └── font-chain.mjs.map
 ```
 
 ## 许可证

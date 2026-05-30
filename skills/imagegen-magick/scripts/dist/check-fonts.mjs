@@ -1,8 +1,9 @@
 import { Command } from "commander";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { homedir, platform } from "node:os";
-import { extname, isAbsolute, join, resolve } from "node:path";
+import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 //#region src/lib/spawn.ts
 /**
 * 跨平台子进程封装（替代 cross-spawn 依赖）
@@ -343,7 +344,7 @@ async function listFonts(filter) {
 		timeoutMs: 1e4
 	});
 	if (!result.success) return [];
-	const blocks = result.stdout.split(/^Font:\s+/m).slice(1);
+	const blocks = result.stdout.split(/^\s*Font:\s+/m).slice(1);
 	const fonts = [];
 	for (const block of blocks) {
 		const familyMatch = block.match(/family:\s*(.+)$/m);
@@ -565,15 +566,69 @@ function inferFamilyFromFilename(filePath) {
 //#endregion
 //#region src/lib/font-fallback.ts
 /**
-* 适合代码 / CLI / 博客封面的西文字体候选（等宽字体优先）
+* 字体 Fallback 策略模块
 *
-* 候选理由：
-* - Cascadia Code/Mono/Next：VSCode 默认，支持 Nerd Font 图标
-* - Fira Code：流行开发字体，连字优秀
-* - JetBrains Mono：IDEA 默认，清晰易读
-* - Hack：开源经典等宽字体
-* - Consolas：Windows 自带，老一代等宽
-* - Courier New：兜底等宽（几乎所有系统都有）
+* 核心功能：
+* - 优先从 references/font-handling.jsonc 读取由 font-chain.mjs 生成的字体链
+* - JSONC 不存在时，使用内置硬编码默认候选列表（兜底）
+* - 支持自定义候选策略
+*
+* 设计目标：
+* - JSONC 中的字体名来自 magick identify -list font，是当前系统真实可用的
+* - 硬编码列表作为 fallback，保证首次使用也能工作
+* - 用户可通过编辑 JSONC 自定义字体优先级
+*/
+/**
+* 解析 JSONC（去除注释后 JSON.parse）
+*
+* 支持 // 单行注释和 /* ... * / 多行注释，正确处理字符串内的 //
+*/
+function parseJsonc(text) {
+	let result = "";
+	let i = 0;
+	while (i < text.length) {
+		if (text[i] === "\"") {
+			result += text[i++];
+			while (i < text.length && text[i] !== "\"") {
+				if (text[i] === "\\") result += text[i++];
+				result += text[i++];
+			}
+			if (i < text.length) result += text[i++];
+			continue;
+		}
+		if (text[i] === "/" && text[i + 1] === "*") {
+			i += 2;
+			while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) i++;
+			i += 2;
+			continue;
+		}
+		if (text[i] === "/" && text[i + 1] === "/") {
+			while (i < text.length && text[i] !== "\n") i++;
+			continue;
+		}
+		result += text[i++];
+	}
+	return JSON.parse(result);
+}
+/**
+* 尝试加载 font-handling.jsonc
+*
+* 查找路径：相对于当前脚本位置向上两级，进入 references/font-handling.jsonc
+* 即：scripts/dist/*.mjs → ../../references/font-handling.jsonc
+*
+* @returns 解析后的配置，或 null（文件不存在或解析失败）
+*/
+function loadFontChainConfig() {
+	try {
+		const jsoncPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../references/font-handling.jsonc");
+		if (!readFileSync) return null;
+		return parseJsonc(readFileSync(jsoncPath, "utf-8"));
+	} catch {
+		return null;
+	}
+}
+/**
+* 适合代码 / CLI / 博客封面的西文字体候选（等宽字体优先）
 */
 var DEFAULT_CODE_FONT_CANDIDATES = [
 	"Cascadia Code",
@@ -593,10 +648,6 @@ var DEFAULT_CODE_FONT_CANDIDATES = [
 ];
 /**
 * 中文字体候选（按平台分组）
-*
-* Windows：微软雅黑 → 等线 → 仿宋
-* macOS：  PingFang SC → STHeiti
-* Linux：  Noto Sans CJK SC → WenQuanYi
 */
 var DEFAULT_CJK_FONT_CANDIDATES = [
 	"Microsoft YaHei",
@@ -643,11 +694,23 @@ var DEFAULT_SERIF_FONT_CANDIDATES = [
 	"Noto Serif"
 ];
 /**
-* 在字体列表中查找某个字体族名（不区分大小写，支持别名）
+* 获取字体候选列表
 *
-* @param fonts - 系统字体列表
-* @param targetFamily - 期望字体族名
-* @returns 匹配到的字体信息，或 null
+* 优先从 font-handling.jsonc 读取（由 font-chain.mjs 生成）
+* JSONC 不存在或解析失败时，使用硬编码默认值
+*/
+function getCodeCandidates() {
+	const config = loadFontChainConfig();
+	if (config?.code?.chain?.length) return config.code.chain;
+	return DEFAULT_CODE_FONT_CANDIDATES;
+}
+function getCjkCandidates() {
+	const config = loadFontChainConfig();
+	if (config?.cjk?.chain?.length) return config.cjk.chain;
+	return DEFAULT_CJK_FONT_CANDIDATES;
+}
+/**
+* 在字体列表中查找某个字体族名（不区分大小写，支持别名）
 */
 function findFont(fonts, targetFamily) {
 	const normalized = targetFamily.toLowerCase().replace(/\s+/g, " ").trim();
@@ -659,29 +722,9 @@ function findFont(fonts, targetFamily) {
 }
 /**
 * 按候选列表查找字体（含 fallback）
-*
-* @param fonts - 系统中可用字体列表
-* @param requested - 用户请求的字体（可选；不传则从 candidates 第一项开始）
-* @param strategy - 备选策略
-* @returns 匹配结果
-*
-* @example
-*   const result = resolveFont(systemFonts, 'Cascadia Code', {
-*     candidates: DEFAULT_CODE_FONT_CANDIDATES,
-*     allowCJK: true,
-*     verbose: true,
-*   })
-*
-*   if (result.source === 'exact') {
-*     // 用户请求字体可用
-*   } else if (result.source === 'fallback') {
-*     // 降级到备选字体
-*   } else {
-*     // 系统完全无中文字体，警告
-*   }
 */
 function resolveFont(fonts, requested, strategy = {
-	candidates: DEFAULT_CODE_FONT_CANDIDATES,
+	candidates: getCodeCandidates(),
 	allowCJK: true,
 	verbose: true
 }) {
@@ -706,7 +749,7 @@ function resolveFont(fonts, requested, strategy = {
 			warning: requested && strategy.verbose ? `用户请求的字体 "${requested}" 不可用，已降级到 "${font.family}"` : void 0
 		};
 	}
-	if (strategy.allowCJK) for (const cjk of DEFAULT_CJK_FONT_CANDIDATES) {
+	if (strategy.allowCJK) for (const cjk of getCjkCandidates()) {
 		const font = findFont(fonts, cjk);
 		if (font) return {
 			matched: true,

@@ -36,9 +36,9 @@ description: "生成或编辑矢量/程序化图像（博客封面、Logo、图�
 
 **核心理念**：让 AI 写代码而不是生成图像，所有视觉元素都可精确控制、可复现、可协作。
 
-## 四个核心工具
+## 五个核心工具
 
-本技能提供 4 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
+本技能提供 5 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
 
 ### 1. `info.mjs` — 环境检查
 
@@ -109,6 +109,24 @@ node scaffold.mjs --preset wechat-cover \
   --font "Cascadia Code" --output cover.svg --no-interactive
 ```
 
+### 5. `font-chain.mjs` — 字体链生成工具
+
+```bash
+node <skill-dir>/scripts/dist/font-chain.mjs [--json] [--dry-run] [--quiet]
+```
+
+**用途**：从 ImageMagick 获取系统真实可用字体，按类别和优先级分类，生成 `references/font-handling.jsonc`。
+
+**执行时机**：Agent 首次使用技能时**必须执行**，后续字体变化时可重新执行。
+
+**工作流程**：
+1. 执行 `magick identify -list font` 获取所有字体
+2. 按关键字分类到 code/cjk/sans/serif 四个类别
+3. 按 curated 优先级列表排序（如 Cascadia Next SC NF 排首位）
+4. 输出 JSONC 文件供 `font-fallback.ts` 和 Agent 读取
+
+**输出**：`references/font-handling.jsonc`（JSONC 格式，带注释，机器可读）
+
 ## 标准工作流（5 个 Phase）
 
 ### Phase 1: 环境确认（首次使用必做）
@@ -163,7 +181,7 @@ node <skill-dir>/scripts/dist/info.mjs
 **重要原则**：
 - 遵循 `references/layouts.md` 的布局规范
 - 配色参考 `references/color-palettes.md`
-- 字体处理参考 `references/font-handling.md`
+- 字体处理参考 `references/font-handling.jsonc`（首次使用需执行 `font-chain.mjs` 生成）
 - 必须使用 `font-family` 链式 fallback（不要单字体名）
 
 ```xml
@@ -191,14 +209,26 @@ node <skill-dir>/scripts/dist/render.mjs design-v1.svg -o design-v1.png
 ## 自检清单（必须逐项确认）
 
 [ ] 1. **文字渲染**：是否有乱码 / 豆腐块 / 空白字？
-[ ] 2. **元素对齐**：标题是否居中？元素间距是否合理？
-[ ] 3. **覆盖检测**：是否有任何文字被图片/元素遮挡？
-[ ] 4. **边界检测**：是否有任何元素超出 SVG 画布？
-[ ] 5. **颜色和谐**：背景与文字对比是否清晰？
-[ ] 6. **字体美观**：文字是否清晰可读？
+[ ] 2. **主体与构图**：画面主体是否正确？布局是否符合设计意图？
+[ ] 3. **元素对齐**：标题是否居中？元素间距是否合理？
+[ ] 4. **元素间距**：装饰元素与文字之间是否有足够间距（≥ 20px）？是否有重叠？
+[ ] 5. **覆盖检测**：是否有任何文字被图片/元素遮挡？
+[ ] 6. **边界检测**：是否有任何元素超出 SVG 画布？
+[ ] 7. **颜色和谐**：背景与文字对比是否清晰？
+[ ] 8. **字体美观**：文字是否清晰可读？
+[ ] 9. **约束验证**：用户指定的约束（尺寸、风格、避免项等）是否满足？
 ```
 
-**发现问题时的处理**：
+**开放式验证**（checklist 之外）：
+
+checklist 是基础保障，但不能覆盖所有情况。完成 checklist 后，**必须额外审视整个画面**：
+
+- 是否有 checklist 未提及的视觉问题？
+- 元素之间的空间关系是否舒适？
+- 整体视觉层次是否清晰（主次分明）？
+- 是否有意外的视觉干扰或噪点？
+
+发现问题时的处理：
 - 如果某项未通过，**一次只修一个问题**（参考单次迭代规则）
 - 修复后重新走 Phase 4（重新渲染 + 重新验证）
 - 最多 5 轮迭代
@@ -270,12 +300,14 @@ SVG 中**不要**写背景层：
 
 | 类型 | 候选字体 |
 |------|---------|
-| 代码/西文 | Cascadia Code → Fira Code → JetBrains Mono → Source Code Pro → Consolas → Courier New |
-| 中文 | 微软雅黑 → PingFang SC → Noto Sans CJK SC → WenQuanYi |
-| 无衬线西文 | Inter → Roboto → SF Pro → Segoe UI → Arial |
-| 衬线西文 | Charter → Georgia → Cambria → Times New Roman |
+| 代码/西文 | 见 `references/font-handling.jsonc` → code.chain |
+| 中文 | 见 `references/font-handling.jsonc` → cjk.chain |
+| 无衬线西文 | 见 `references/font-handling.jsonc` → sans.chain |
+| 衬线西文 | 见 `references/font-handling.jsonc` → serif.chain |
 
-**实现细节**：参考 `references/font-handling.md`
+**数据来源**：`references/font-handling.jsonc` 由 `font-chain.mjs` 从 `magick identify -list font` 动态生成，反映当前系统真实可用字体。
+
+**Fallback 策略**：JSONC 不存在时，代码内置硬编码默认候选列表（兜底）。
 
 ## 何时不使用此技能
 
@@ -317,7 +349,7 @@ node <skill-dir>/scripts/dist/info.mjs
 - [`references/layouts.md`](./references/layouts.md) — 布局模式配方
 - [`references/decorations.md`](./references/decorations.md) — 装饰元素库
 - [`references/imagemagick-commands.md`](./references/imagemagick-commands.md) — IM 命令参考
-- [`references/font-handling.md`](./references/font-handling.md) — 字体处理与 Fallback 指南
+- [`references/font-handling.jsonc`](./references/font-handling.jsonc) — 字体链配置（由 `font-chain.mjs` 生成）
 
 ## 示例（按需阅读）
 

@@ -228,8 +228,8 @@ export async function listFonts(
     return []
   }
 
-  // 解析输出：按 "Font: xxx" 分块
-  const blocks = result.stdout.split(/^Font:\s+/m).slice(1)
+  // 解析输出：按 "Font: xxx" 分块（Font: 行可能有前导空格缩进）
+  const blocks = result.stdout.split(/^\s*Font:\s+/m).slice(1)
   const fonts: Array<{ family: string; file: string }> = []
 
   for (const block of blocks) {

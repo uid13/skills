@@ -366,7 +366,7 @@ async function listFonts(filter) {
 		timeoutMs: 1e4
 	});
 	if (!result.success) return [];
-	const blocks = result.stdout.split(/^Font:\s+/m).slice(1);
+	const blocks = result.stdout.split(/^\s*Font:\s+/m).slice(1);
 	const fonts = [];
 	for (const block of blocks) {
 		const familyMatch = block.match(/family:\s*(.+)$/m);

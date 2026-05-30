@@ -26,6 +26,7 @@
  *   → render.mjs     (单文件，包含所有依赖 inline)
  *   → check-fonts.mjs (...)
  *   → scaffold.mjs   (...)
+ *   → font-chain.mjs (...)
  */
 
 import { build } from 'vite'
@@ -47,6 +48,7 @@ const ENTRIES = [
   'render',
   'check-fonts',
   'scaffold',
+  'font-chain',
 ]
 
 /**
