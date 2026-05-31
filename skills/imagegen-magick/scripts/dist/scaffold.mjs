@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { createInterface } from "node:readline";
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import { spawn } from "node:child_process";
@@ -339,186 +339,150 @@ async function spawnExec(cmd, options = {}) {
 	});
 }
 //#endregion
-//#region src/utils/path.ts
+//#region src/lib/magick/core.ts
 /**
-* 路径处理辅助工具
+* ImageMagick 统一模块 - 底层执行封装
 *
-* 跨平台路径相关的通用函数，避免在不同模块重复实现。
+* 封装 magick CLI 调用，提供跨平台的命令执行能力。
+* 所有上层模块（detection/render/dimensions）都通过此模块调用 magick。
 */
-/**
-* 检查文件是否存在且为普通文件
-*
-* @param path - 文件路径
-* @returns true 表示存在且不是目录
-*/
-function isFile(path) {
-	try {
-		return existsSync(path) && statSync(path).isFile();
-	} catch {
-		return false;
-	}
-}
-/**
-* 确保路径为绝对路径（相对于 cwd 转换）
-*
-* @param path - 输入路径
-* @param cwd - 基准目录（默认 process.cwd()）
-*/
-function toAbsolutePath(path, cwd = process.cwd()) {
-	return isAbsolute(path) ? path : resolve(cwd, path);
-}
-/**
-* 获取文件扩展名（带点号，小写）
-*
-* 示例：'image.PNG' → '.png'
-*/
-function getExt(filePath) {
-	return extname(filePath).toLowerCase();
-}
-/**
-* 检查文件扩展名是否在支持列表中
-*
-* @param filePath - 文件路径
-* @param allowed - 允许的扩展名列表（带或不带点号皆可）
-*/
-function hasAllowedExt(filePath, allowed) {
-	const ext = getExt(filePath).replace(/^\./, "");
-	return allowed.some((a) => a.replace(/^\./, "").toLowerCase() === ext);
-}
-//#endregion
-//#region src/lib/magick.ts
-/**
-* ImageMagick 命令封装
-*
-* 功能：
-* 1. 检测 ImageMagick 是否已安装，获取版本信息
-* 2. SVG → PNG 高质量渲染（含字体处理）
-* 3. 列出 ImageMagick 识别的系统中文字体
-*
-* 设计说明：
-* - ImageMagick 7+ 的所有命令都以 `magick` 开头（旧版 6 用 `convert`，已不考虑）
-* - 本模块只封装命令构造与执行，不包含业务逻辑（由 bin/*.ts 决定如何调用）
-* - 所有命令失败时返回详细错误信息（包含 stderr），便于诊断
-*
-* 用法：
-*   import { magick } from '../lib/magick'
-*
-*   // 检测环境
-*   const info = await magick.detect()
-*
-*   // 渲染 SVG
-*   await magick.renderSvg('input.svg', 'output.png', { scale: '2x' })
-*
-*   // 列出字体
-*   const fonts = await magick.listFonts('Cascadia')
-*/
+/** magick 可执行文件名 */
 var MAGICK_CMD = "magick";
 /**
-* 检测 ImageMagick 是否已安装并获取基本信息
+* 执行 magick 命令
 *
-* 执行 `magick -version` 解析输出，提取：
-* - 版本号 (如 '7.1.2-24')
-* - 可执行文件路径
-* - 支持的图像格式列表（如 'PNG SVG JPEG ...'）
-*
-* @returns 检测结果（installed=false 表示未安装）
-*
-* @example
-*   const info = await detectImageMagick()
-*   if (!info.installed) {
-*     console.error('请先安装 ImageMagick:', info.error)
-*   } else {
-*     console.log('已安装版本:', info.version)
-*   }
+* @param args - 命令行参数（不含 magick 本身）
+* @param timeoutMs - 超时时间（默认 30 秒）
+* @returns 执行结果
 */
-async function detectImageMagick() {
-	const versionResult = await spawnExec(MAGICK_CMD, {
-		args: ["-version"],
-		timeoutMs: 5e3
+async function execMagick(args, timeoutMs = 3e4) {
+	const result = await spawnExec(MAGICK_CMD, {
+		args,
+		timeoutMs
 	});
+	return {
+		success: result.success,
+		stdout: result.stdout,
+		stderr: result.stderr,
+		exitCode: result.exitCode
+	};
+}
+//#endregion
+//#region src/lib/magick/detection.ts
+/**
+* ImageMagick 统一模块 - 检测与信息
+*
+* 功能：
+* - 检测 ImageMagick 是否安装
+* - 列出系统字体
+* - 列出支持的图像格式
+*/
+/**
+* 检测 ImageMagick 环境
+*
+* 执行 `magick -version` 获取版本信息和支持格式
+*/
+async function detectEnvironment() {
+	const versionResult = await execMagick(["-version"], 5e3);
 	if (!versionResult.success) return {
 		installed: false,
-		error: `无法执行 '${MAGICK_CMD} -version'。${versionResult.stderr || "请确保 ImageMagick 已安装并加入 PATH"}`
+		error: `无法执行 'magick -version'。${versionResult.stderr || "请确保 ImageMagick 已安装并加入 PATH"}`
 	};
-	const versionMatch = versionResult.stdout.match(/ImageMagick\s+(\S+)/);
-	const version = versionMatch ? versionMatch[1] : void 0;
-	const formatResult = await spawnExec(MAGICK_CMD, {
-		args: [
-			"identify",
-			"-list",
-			"format"
-		],
-		timeoutMs: 5e3
-	});
+	const version = versionResult.stdout.match(/ImageMagick\s+(\S+)/) ? versionResult.stdout.match(/ImageMagick\s+(\S+)/)?.[1] : void 0;
+	const formatResult = await execMagick([
+		"identify",
+		"-list",
+		"format"
+	], 5e3);
 	let formats;
 	if (formatResult.success) formats = formatResult.stdout.split("\n").map((line) => line.trim().split(/\s+/)[0]).filter((fmt) => fmt && /^[A-Z0-9]+$/i.test(fmt)).slice(0, 50);
 	return {
 		installed: true,
 		version,
-		executable: MAGICK_CMD,
+		executable: "magick",
 		formats
 	};
 }
 /**
-* 渲染 SVG 为 PNG（核心函数）
+* 列出系统所有字体
 *
-* 工作流程：
-* 1. 验证输入 SVG 文件存在且扩展名正确
-* 2. 检查输出文件是否已存在（非 force 模式会拒绝覆盖）
-* 3. 构造 magick 命令（带所有渲染参数）
-* 4. 执行并捕获 stdout/stderr
+* 执行 `magick identify -list font` 解析字体族名和文件路径
+*/
+async function listFonts$1() {
+	const result = await execMagick([
+		"identify",
+		"-list",
+		"font"
+	], 1e4);
+	if (!result.success) return [];
+	const blocks = result.stdout.split(/^\s*Font:\s+/m).slice(1);
+	const fonts = [];
+	for (const block of blocks) {
+		const familyMatch = block.match(/family:\s*(.+)$/m);
+		const fileMatch = block.match(/glyphs:\s*(.+)$/m);
+		if (familyMatch && fileMatch) fonts.push({
+			family: familyMatch[1].trim(),
+			file: fileMatch[1].trim()
+		});
+	}
+	return fonts;
+}
+/**
+* 列出支持的图像格式
+*/
+async function listFormats() {
+	const result = await execMagick([
+		"identify",
+		"-list",
+		"format"
+	], 5e3);
+	if (!result.success) return [];
+	return result.stdout.split("\n").map((line) => line.trim().split(/\s+/)[0]).filter((fmt) => fmt && /^[A-Z0-9]+$/i.test(fmt)).slice(0, 100);
+}
+//#endregion
+//#region src/lib/magick/render.ts
+/**
+* ImageMagick 统一模块 - SVG 渲染
 *
-* 关键参数说明：
-* - `-background`：渲染前的背景色（'none' 表示透明）
-* - `-density 96`：DPI，用于缩放（96 × 2 = 192 DPI → 2x 质量）
-* - `-resize WxH`：缩放输出尺寸
-* - `-quality 95`：PNG 质量（影响压缩率，不影响清晰度）
+* 功能：
+* - SVG → PNG/JPEG/WebP 渲染
+*/
+/**
+* 将 SVG 渲染为 PNG
 *
 * @param options - 渲染选项
-* @returns 渲染结果（成功/失败 + 错误信息）
-*
-* @example
-*   const result = await renderSvg({
-*     input: './cover.svg',
-*     output: './cover.png',
-*     scale: '2x',
-*     background: 'transparent',
-*   })
-*   if (!result.success) {
-*     console.error('渲染失败:', result.error)
-*   }
+* @returns 渲染结果
 */
 async function renderSvg(options) {
 	const { input, output, quality = 95, background = "transparent", density = "96", force = false } = options;
-	const inputPath = toAbsolutePath(input);
-	if (!isFile(inputPath)) return {
+	const inputPath = resolve(input);
+	if (!existsSync(inputPath)) return {
 		success: false,
 		error: `输入文件不存在: ${inputPath}`,
 		exitCode: 2
 	};
-	if (!hasAllowedExt(inputPath, ["svg", "svgz"])) return {
+	const ext = extname(inputPath).toLowerCase();
+	if (ext !== ".svg" && ext !== ".svgz") return {
 		success: false,
-		error: `输入文件不是 SVG: ${inputPath}（需要 .svg 或 .svgz 扩展名）`,
+		error: `输入文件不是 SVG: ${inputPath}`,
 		exitCode: 2
 	};
-	const outputPath = toAbsolutePath(output);
-	if (isFile(outputPath) && !force) return {
+	const outputPath = resolve(output);
+	if (existsSync(outputPath) && !force) return {
 		success: false,
 		error: `输出文件已存在: ${outputPath}（使用 force: true 或换文件名）`,
 		exitCode: 2
 	};
-	const result = await spawnExec(MAGICK_CMD, {
-		args: [...[
-			inputPath,
-			"-background",
-			background === "transparent" ? "none" : background,
-			"-density",
-			density,
-			"-quality",
-			String(quality)
-		], outputPath],
-		timeoutMs: 6e4
-	});
+	const result = await execMagick([
+		inputPath,
+		"-background",
+		background === "transparent" ? "none" : background,
+		"-density",
+		density,
+		"-quality",
+		String(quality),
+		outputPath
+	], 6e4);
 	if (!result.success) return {
 		success: false,
 		error: `ImageMagick 渲染失败 (exit ${result.exitCode}): ${result.stderr}`,
@@ -530,59 +494,37 @@ async function renderSvg(options) {
 		exitCode: 0
 	};
 }
+//#endregion
+//#region src/lib/magick.ts
 /**
-* 列出 ImageMagick 识别的系统字体
+* ImageMagick 命令封装（兼容层）
 *
-* 工作原理：
-* - 执行 `magick identify -list font`
-* - 解析输出，提取字体族名和文件路径
+* 本文件保留是为了向后兼容已有的 import { magick } from '../lib/magick.js'。
+* 新代码请直接使用 '../lib/magick/index.js'。
 *
-* 输出示例：
-* ```
-* Font: Arial
-*   family: Arial
-*   style: Normal
-*   glyphs: C:/Windows/Fonts/ARIAL.TTF
-* ```
-*
-* @param filter - 可选过滤关键字（不区分大小写，匹配 family 名）
-* @returns 字体列表数组，每项含 family+file
-*
-* @example
-*   const fonts = await listFonts('Cascadia')
-*   // 返回: [{family: 'Cascadia Code', file: '...'}]
+* 底层实现已迁移到 magick/ 模块：
+* - magick/core.ts      底层 CLI 调用
+* - magick/detection.ts 环境检测、字体、格式
+* - magick/render.ts    SVG 渲染
+* - magick/processor.ts ImageProcessor（组合注入）
+* - magick/dimensions/  处理维度（几何/颜色/滤镜/艺术/格式）
 */
-async function listFonts(filter) {
-	const result = await spawnExec(MAGICK_CMD, {
-		args: [
-			"identify",
-			"-list",
-			"font"
-		],
-		timeoutMs: 1e4
-	});
-	if (!result.success) return [];
-	const blocks = result.stdout.split(/^\s*Font:\s+/m).slice(1);
-	const fonts = [];
-	for (const block of blocks) {
-		const familyMatch = block.match(/family:\s*(.+)$/m);
-		const fileMatch = block.match(/glyphs:\s*(.+)$/m);
-		if (familyMatch && fileMatch) {
-			const family = familyMatch[1].trim();
-			const file = fileMatch[1].trim();
-			if (!filter || family.toLowerCase().includes(filter.toLowerCase())) fonts.push({
-				family,
-				file
-			});
-		}
-	}
-	return fonts;
+/**
+* 检测 ImageMagick 环境（向后兼容旧 API）
+*/
+async function detectImageMagick() {
+	return detectEnvironment();
 }
 /**
-* 获取完整 ImageMagick 环境信息（用于 info 命令）
-*
-* 这是一个便捷的聚合函数，调用内部各个检测流程。
-* 被 bin/info.ts 调用，输出完整环境报告。
+* 列出系统字体（向后兼容旧 API）
+*/
+async function listFonts(filter) {
+	const allFonts = await listFonts$1();
+	if (!filter) return allFonts;
+	return allFonts.filter((f) => f.family.toLowerCase().includes(filter.toLowerCase()));
+}
+/**
+* 获取环境信息（用于 info 命令）
 */
 async function getInfo() {
 	return detectImageMagick();
@@ -591,6 +533,7 @@ var magick = {
 	detect: detectImageMagick,
 	renderSvg,
 	listFonts,
+	listFormats,
 	getInfo
 };
 //#endregion
@@ -985,6 +928,17 @@ function formatFontFamily(chain) {
 		if (/^(system-ui|sans-serif|serif|monospace|cursive|fantasy)$/i.test(name)) return name;
 		return `"${name.replace(/"/g, "\\\"")}"`;
 	}).join(", ");
+}
+//#endregion
+//#region src/utils/path.ts
+/**
+* 确保路径为绝对路径（相对于 cwd 转换）
+*
+* @param path - 输入路径
+* @param cwd - 基准目录（默认 process.cwd()）
+*/
+function toAbsolutePath(path, cwd = process.cwd()) {
+	return isAbsolute(path) ? path : resolve(cwd, path);
 }
 //#endregion
 //#region src/bin/scaffold.ts

@@ -27,7 +27,20 @@ src/imagegen-magick/
 │   ├── lib/                     # 工具库（被 bin 引用）
 │   │   ├── colors.ts            # 终端颜色输出（替代 chalk）
 │   │   ├── spawn.ts             # 跨平台子进程封装（替代 cross-spawn）
-│   │   ├── magick.ts            # ImageMagick 命令封装
+│   │   ├── magick.ts            # ImageMagick 兼容层（→ magick/index.ts）
+│   │   ├── magick/              # ImageMagick 统一模块
+│   │   │   ├── index.ts         # 统一导出
+│   │   │   ├── types.ts         # 共享类型
+│   │   │   ├── core.ts          # 底层 CLI 调用封装
+│   │   │   ├── detection.ts     # 环境检测、字体、格式
+│   │   │   ├── render.ts        # SVG 渲染
+│   │   │   ├── processor.ts     # ImageProcessor（组合注入）
+│   │   │   └── dimensions/      # 处理维度（按需注入）
+│   │   │       ├── geometry.ts  # 几何变换
+│   │   │       ├── color.ts     # 颜色色调
+│   │   │       ├── filter.ts    # 滤镜模糊
+│   │   │       ├── art.ts       # 艺术效果
+│   │   │       └── format.ts    # 格式编码
 │   │   ├── font-detector.ts     # 跨平台字体检测
 │   │   ├── font-fallback.ts     # 字体 fallback 策略
 │   │   ├── logger.ts            # 统一日志工具
