@@ -27,6 +27,7 @@
  *   → check-fonts.mjs (...)
  *   → scaffold.mjs   (...)
  *   → font-chain.mjs (...)
+ *   → post-process.mjs (...)
  */
 
 import { build } from 'vite'
@@ -49,6 +50,7 @@ const ENTRIES = [
   'check-fonts',
   'scaffold',
   'font-chain',
+  'post-process',
 ]
 
 /**

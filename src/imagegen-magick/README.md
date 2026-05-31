@@ -22,7 +22,8 @@ src/imagegen-magick/
 │   │   ├── render.ts            # SVG → PNG 渲染
 │   │   ├── check-fonts.ts       # 字体检测与推荐
 │   │   ├── scaffold.ts          # 交互式 SVG 生成器
-│   │   └── font-chain.ts        # 字体链生成（→ JSONC）
+│   │   ├── font-chain.ts        # 字体链生成（→ JSONC）
+│   │   └── post-process.ts      # 图像后期处理
 │   │
 │   ├── lib/                     # 工具库（被 bin 引用）
 │   │   ├── colors.ts            # 终端颜色输出（替代 chalk）

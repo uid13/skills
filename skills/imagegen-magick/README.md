@@ -139,7 +139,9 @@ imagegen-magick/
     ├── scaffold.mjs
     ├── scaffold.mjs.map
     ├── font-chain.mjs
-    └── font-chain.mjs.map
+    ├── font-chain.mjs.map
+    ├── post-process.mjs
+    └── post-process.mjs.map
 ```
 
 ## 许可证

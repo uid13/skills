@@ -36,9 +36,9 @@ description: "生成或编辑矢量/程序化图像（博客封面、Logo、图�
 
 **核心理念**：让 AI 写代码而不是生成图像，所有视觉元素都可精确控制、可复现、可协作。
 
-## 五个核心工具
+## 六个核心工具
 
-本技能提供 5 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
+本技能提供 6 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
 
 ### 1. `info.mjs` — 环境检查
 
@@ -126,6 +126,26 @@ node <skill-dir>/scripts/dist/font-chain.mjs [--json] [--dry-run] [--quiet]
 4. 输出 JSONC 文件供 `font-fallback.ts` 和 Agent 读取
 
 **输出**：`references/font-handling.jsonc`（JSONC 格式，带注释，机器可读）
+
+### 6. `post-process.mjs` — 图像后期处理
+
+```bash
+node <skill-dir>/scripts/dist/post-process.mjs <input> [options] -o <output>
+```
+
+**用途**：对已有图片进行后期调整，无需重新渲染 SVG。
+
+**Agent 使用方式**：根据 Phase 4 自检结果，自行判断需要的参数。模型具备 ImageMagick 参数知识，无需映射表。
+
+**支持的操作维度**：
+- 几何变换：`--resize`、`--crop`、`--rotate`、`--flip`、`--flop`
+- 颜色色调：`--brightness`、`--contrast`、`--saturation`、`--sepia`、`--grayscale`、`--auto-level`
+- 滤镜模糊：`--blur`、`--sharpen`、`--unsharp`
+- 艺术效果：`--vignette`、`--charcoal`、`--sketch`、`--pixelate`
+- 格式输出：`--jpeg <quality>`、`--webp <quality>`、`--png`、`--strip`
+- 预设效果：`--preset <name>`（如 blog-cover、vintage、dramatic）
+
+**工作流集成**：Phase 4 自检发现问题 → 判断属于后期处理范畴 → 调用 post-process.mjs → 重新自检。
 
 ## 标准工作流（5 个 Phase）
 
