@@ -215,11 +215,11 @@ var ImageProcessor = class {
 	* @param extraArgs - 额外的 magick 参数（在操作之前）
 	*/
 	async execute(input, output, extraArgs = []) {
-		const commands = this.getCommands();
+		const splitCommands = this.getCommands().flatMap((cmd) => cmd.split(/\s+/));
 		const result = await execMagick([
 			...extraArgs,
 			input,
-			...commands,
+			...splitCommands,
 			output
 		], 12e4);
 		if (!result.success) throw new Error(`ImageMagick 执行失败: ${result.stderr}`);

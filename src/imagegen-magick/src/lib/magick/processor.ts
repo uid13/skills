@@ -82,7 +82,9 @@ export class ImageProcessor {
    */
   async execute(input: string, output: string, extraArgs: string[] = []): Promise<void> {
     const commands = this.getCommands()
-    const args = [...extraArgs, input, ...commands, output]
+    // 拆分带空格的命令字符串（如 "-brightness-contrast 15x0" → ["-brightness-contrast", "15x0"]）
+    const splitCommands = commands.flatMap(cmd => cmd.split(/\s+/))
+    const args = [...extraArgs, input, ...splitCommands, output]
 
     const result = await execMagick(args, 120000)
 
