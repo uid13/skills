@@ -1,6 +1,21 @@
 /**
  * ImageMagick 统一模块 - 类型定义
+ *
+ * 基础类型（FontInfo、MagickInfo、RenderOptions 等）统一在 types/index.ts 定义。
+ * 本文件 re-export 并补充 magick 模块特有的类型。
  */
+
+// 从公共类型 re-export（唯一来源）
+export type {
+  FontInfo,
+  MagickInfo,
+  RenderOptions,
+  RenderResult,
+} from '../../types/index.js'
+
+// ============================================================
+// magick 模块特有类型
+// ============================================================
 
 /** 单个操作指令 */
 export interface Operation {
@@ -18,37 +33,4 @@ export interface Dimension {
   getCommands(): string[]
   /** 清空操作指令 */
   clear(): void
-}
-
-/** 渲染选项 */
-export interface RenderOptions {
-  input: string
-  output: string
-  quality?: number
-  background?: string
-  density?: string
-  force?: boolean
-}
-
-/** 渲染结果 */
-export interface RenderResult {
-  success: boolean
-  outputFile?: string
-  error?: string
-  exitCode: number
-}
-
-/** ImageMagick 环境信息 */
-export interface MagickInfo {
-  installed: boolean
-  version?: string
-  executable?: string
-  formats?: string[]
-  error?: string
-}
-
-/** 字体信息 */
-export interface FontInfo {
-  family: string
-  file: string
 }

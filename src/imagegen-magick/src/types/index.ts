@@ -3,6 +3,9 @@
  *
  * 本文件集中定义所有共享类型，避免 lib 之间循环依赖。
  * 被 lib/ 下的工具统一引用。
+ *
+ * 注意：FontInfo、MagickInfo 等基础类型由此文件统一定义。
+ * magick/types.ts 从此文件 re-export，不要在那里重复定义。
  */
 
 // ============================================================
@@ -58,6 +61,22 @@ export interface FallbackStrategy {
 // ============================================================
 
 /**
+ * ImageMagick 环境信息
+ */
+export interface MagickInfo {
+  /** 是否已安装 */
+  installed: boolean
+  /** 版本号（如 '7.1.2-24'） */
+  version?: string
+  /** 可执行文件路径 */
+  executable?: string
+  /** 支持的图像格式列表 */
+  formats?: string[]
+  /** 失败时的错误信息 */
+  error?: string
+}
+
+/**
  * 渲染参数
  */
 export interface RenderOptions {
@@ -89,22 +108,6 @@ export interface RenderResult {
   exitCode: number
 }
 
-/**
- * ImageMagick 环境信息
- */
-export interface ImageMagickInfo {
-  /** 是否已安装 */
-  installed: boolean
-  /** 版本号（如 '7.1.2-24'） */
-  version?: string
-  /** 可执行文件路径 */
-  executable?: string
-  /** 支持的图像格式列表 */
-  formats?: string[]
-  /** 失败时的错误信息 */
-  error?: string
-}
-
 // ============================================================
 // 环境信息汇总类型
 // ============================================================
@@ -118,7 +121,7 @@ export interface EnvironmentInfo {
   /** 操作系统 */
   platform: string
   /** ImageMagick 状态 */
-  imagemagick: ImageMagickInfo
+  imagemagick: MagickInfo
   /** 首选字体结果 */
   preferredFont: FontMatchResult | null
   /** 系统字体总数 */
