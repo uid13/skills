@@ -9,7 +9,7 @@
  *
  * 调用示例：
  *   node post-process.mjs input.png --brightness 15 --contrast 5 -o output.png
- *   node post-process.mjs input.png --blur 0 --blur-radius 3 -o output.png
+ *   node post-process.mjs input.png --blur 0 --blur-sigma 3 -o output.png
  *   node post-process.mjs input.png --vignette 120 -o output.png
  *   node post-process.mjs input.png --resize 800 -o output.png
  *   node post-process.mjs input.png --jpeg 85 -o output.jpg

@@ -170,7 +170,7 @@ async function detectEnvironment() {
 		installed: false,
 		error: `无法执行 'magick -version'。${versionResult.stderr || "请确保 ImageMagick 已安装并加入 PATH"}`
 	};
-	const version = versionResult.stdout.match(/ImageMagick\s+(\S+)/) ? versionResult.stdout.match(/ImageMagick\s+(\S+)/)?.[1] : void 0;
+	const version = versionResult.stdout.match(/ImageMagick\s+(\S+)/)?.[1];
 	const formatResult = await execMagick([
 		"identify",
 		"-list",

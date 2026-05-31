@@ -79,6 +79,8 @@ node <skill-dir>/scripts/dist/info.mjs
 | `check-fonts.mjs` | 列出、过滤、推荐系统字体 |
 | `render.mjs` | SVG → PNG 渲染（核心） |
 | `scaffold.mjs` | 交互式生成 SVG 骨架 |
+| `font-chain.mjs` | 从 magick 生成字体链配置（JSONC） |
+| `post-process.mjs` | 图像后期处理（亮度/模糊/暗角/格式转换等） |
 
 详细调用方式见 [SKILL.md](./SKILL.md)。
 

@@ -102,7 +102,11 @@ dist/
 ├── check-fonts.mjs       # node check-fonts.mjs → 列出字体
 ├── check-fonts.mjs.map
 ├── scaffold.mjs          # node scaffold.mjs → 交互式生成
-└── scaffold.mjs.map
+├── scaffold.mjs.map
+├── font-chain.mjs        # node font-chain.mjs → 生成字体链 JSONC
+├── font-chain.mjs.map
+├── post-process.mjs      # node post-process.mjs → 后期处理
+└── post-process.mjs.map
 ```
 
 ## 🎯 设计原则

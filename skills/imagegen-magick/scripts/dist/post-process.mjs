@@ -622,7 +622,7 @@ async function detectEnvironment() {
 		installed: false,
 		error: `无法执行 'magick -version'。${versionResult.stderr || "请确保 ImageMagick 已安装并加入 PATH"}`
 	};
-	const version = versionResult.stdout.match(/ImageMagick\s+(\S+)/) ? versionResult.stdout.match(/ImageMagick\s+(\S+)/)?.[1] : void 0;
+	const version = versionResult.stdout.match(/ImageMagick\s+(\S+)/)?.[1];
 	const formatResult = await execMagick([
 		"identify",
 		"-list",
@@ -866,7 +866,7 @@ createLogger();
 *
 * 调用示例：
 *   node post-process.mjs input.png --brightness 15 --contrast 5 -o output.png
-*   node post-process.mjs input.png --blur 0 --blur-radius 3 -o output.png
+*   node post-process.mjs input.png --blur 0 --blur-sigma 3 -o output.png
 *   node post-process.mjs input.png --vignette 120 -o output.png
 *   node post-process.mjs input.png --resize 800 -o output.png
 *   node post-process.mjs input.png --jpeg 85 -o output.jpg

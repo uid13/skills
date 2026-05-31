@@ -26,7 +26,7 @@ export async function detectEnvironment(): Promise<MagickInfo> {
   }
 
   const versionMatch = versionResult.stdout.match(/ImageMagick\s+(\S+)/)
-  const version = versionMatch ? versionResult.stdout.match(/ImageMagick\s+(\S+)/)?.[1] : undefined
+  const version = versionMatch?.[1]
 
   // 2. 获取支持格式（可选，失败不影响）
   const formatResult = await execMagick(['identify', '-list', 'format'], 5000)
