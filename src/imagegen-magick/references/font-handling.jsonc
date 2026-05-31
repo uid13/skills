@@ -1,0 +1,84 @@
+{
+  // 由 font-chain.mjs 自动生成，请勿手动编辑
+  // 数据源: magick identify -list font
+  // 生成时间: 2026-05-30T14:37:38.429Z
+  // 系统字体总数: 205
+
+  "generatedAt": "2026-05-30T14:37:38.429Z",
+  "source": "magick identify -list font",
+  "totalFonts": 205,
+
+  // 代码/西文等宽字体（按优先级排序）
+  "code": {
+    "description": "代码、CLI、博客封面等场景的等宽字体",
+    "chain": [
+      "Cascadia Next SC NF",
+      "Cascadia Code",
+      "Cascadia Mono",
+      "Consolas",
+      "Courier New",
+      "Lucida Console",
+      "Lucida Sans Unicode",
+      "Monotype Corsiva"
+    ]
+  },
+
+  // 中文字体（按平台优先级排序）
+  "cjk": {
+    "description": "中文字符渲染，与代码字体配合使用",
+    "chain": [
+      "DengXian",
+      "SimHei",
+      "Noto Sans SC",
+      "FangSong",
+      "Microsoft YaHei & Microsoft YaHei UI",
+      "Microsoft YaHei Bold & Microsoft YaHei UI",
+      "Microsoft YaHei Light & Microsoft YaHei UI",
+      "SimSun & NSimSun",
+      "SimSun-ExtB",
+      "SimSun-ExtG"
+    ]
+  },
+
+  // 西文无衬线字体（UI、标题）
+  "sans": {
+    "description": "西文无衬线字体，适合 UI 和标题",
+    "chain": [
+      "Segoe UI",
+      "Arial",
+      "Arial Narrow",
+      "Comic Sans MS",
+      "Lucida Sans Unicode",
+      "Microsoft Sans Serif",
+      "MS Reference Sans Serif",
+      "Noto Sans SC",
+      "Sans Serif Collection",
+      "Segoe Fluent Icons",
+      "Segoe MDL2 Assets",
+      "Segoe Print",
+      "Segoe Script",
+      "Segoe UI Emoji",
+      "Segoe UI Historic",
+      "Segoe UI Semilight",
+      "Segoe UI Symbol",
+      "Segoe UI Variable"
+    ]
+  },
+
+  // 西文衬线字体（长文阅读）
+  "serif": {
+    "description": "西文衬线字体，适合长文阅读",
+    "chain": [
+      "Georgia",
+      "Cambria",
+      "Times New Roman",
+      "Cambria & Cambria Math",
+      "Garamond",
+      "Microsoft Sans Serif",
+      "MS Reference Sans Serif",
+      "Noto Serif SC",
+      "Palatino Linotype",
+      "Sans Serif Collection"
+    ]
+  }
+}

@@ -33,7 +33,7 @@
 import { build } from 'vite'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { chmodSync, existsSync, mkdirSync, rmSync, readdirSync, copyFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, rmSync, readdirSync, copyFileSync, cpSync } from 'node:fs'
 import { platform } from 'node:os'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -175,6 +175,26 @@ async function main() {
   if (existsSync(skillMdSrc)) {
     copyFileSync(skillMdSrc, skillMdDest)
     console.log('📋 已拷贝 SKILL.md → skills/imagegen-magick/SKILL.md')
+  }
+
+  // 拷贝 references/ 到输出目录
+  const refsSrc = resolve(__dirname, 'references')
+  const refsDest = resolve(__dirname, '../../skills/imagegen-magick/references')
+  if (existsSync(refsSrc)) {
+    rmSync(refsDest, { recursive: true, force: true })
+    cpSync(refsSrc, refsDest, { recursive: true })
+    const refsCount = readdirSync(refsDest).length
+    console.log(`📚 已拷贝 references/ (${refsCount} 个文件) → skills/imagegen-magick/references/`)
+  }
+
+  // 拷贝 examples/ 到输出目录
+  const examplesSrc = resolve(__dirname, 'examples')
+  const examplesDest = resolve(__dirname, '../../skills/imagegen-magick/examples')
+  if (existsSync(examplesSrc)) {
+    rmSync(examplesDest, { recursive: true, force: true })
+    cpSync(examplesSrc, examplesDest, { recursive: true })
+    const examplesCount = readdirSync(examplesDest).length
+    console.log(`📝 已拷贝 examples/ (${examplesCount} 个文件) → skills/imagegen-magick/examples/`)
   }
 
   // 统计结果
