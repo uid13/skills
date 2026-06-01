@@ -127,3 +127,10 @@ main().catch(err => {
   console.error('构建失败:', err)
   process.exit(1)
 })
+  // 拷贝 README.md
+  const readmeSrc = resolve(__dirname, 'README.md')
+  const readmeDest = resolve(__dirname, '../../skills/imagegen-magick/README.md')
+  if (existsSync(readmeSrc)) {
+    copyFileSync(readmeSrc, readmeDest)
+    console.log('📖 README.md → skills/imagegen-magick/')
+  }
