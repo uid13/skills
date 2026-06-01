@@ -164,8 +164,8 @@ node <skill-dir>/scripts/dist/info.mjs
 根据收集到的参数，**生成完整可用的 SVG 代码**。
 
 **重要原则**：
-- 遵循 `references/layouts.md` 的布局规范
-- 配色参考 `references/color-palettes.md`
+- 设计思路参考 `references/prompting.md`
+- 多样化设计示例参考 `references/sample-prompts.md`
 - 字体处理参考 `references/font-handling.jsonc`（首次使用需执行 `font-chain.mjs` 生成）
 - 必须使用 `font-family` 链式 fallback（不要单字体名）
 - 可通过 Iconify 公共 API 获取图标素材（详见 `references/assets.md`）
@@ -291,10 +291,8 @@ SVG 中**不要**写背景层：
 
 以下文档按需阅读，不必一次性全部加载：
 
-- [`references/color-palettes.md`](./references/color-palettes.md) — 配色配方库
-- [`references/typography.md`](./references/typography.md) — 字体/排版配方
-- [`references/layouts.md`](./references/layouts.md) — 布局模式配方
-- [`references/decorations.md`](./references/decorations.md) — 装饰元素库
+- [`references/prompting.md`](./references/prompting.md) — SVG 设计思路引导
+- [`references/sample-prompts.md`](./references/sample-prompts.md) — 多样化设计示例
 - [`references/assets.md`](./references/assets.md) — 外部素材获取（Iconify 公共 API 图标）
 - [`references/imagemagick-commands.md`](./references/imagemagick-commands.md) — IM 命令参考
 - [`references/font-handling.jsonc`](./references/font-handling.jsonc) — 字体链配置（由 `font-chain.mjs` 生成）
