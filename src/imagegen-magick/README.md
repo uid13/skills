@@ -21,7 +21,6 @@ src/imagegen-magick/
 │   │   ├── info.ts              # 环境信息检查
 │   │   ├── render.ts            # SVG → PNG 渲染
 │   │   ├── check-fonts.ts       # 字体检测与推荐
-│   │   ├── scaffold.ts          # 交互式 SVG 生成器
 │   │   ├── font-chain.ts        # 字体链生成（→ JSONC）
 │   │   └── post-process.ts      # 图像后期处理
 │   │
@@ -45,14 +44,12 @@ src/imagegen-magick/
 │   │   ├── font-detector.ts     # 跨平台字体检测
 │   │   ├── font-fallback.ts     # 字体 fallback 策略
 │   │   ├── logger.ts            # 统一日志工具
-│   │   └── types.ts             # 类型定义
+│   │
+│   ├── types/                    # 类型定义
+│   │   └── index.ts             # 公共类型（FontInfo、MagickInfo 等）
 │   │
 │   └── utils/
 │       └── path.ts              # 路径处理辅助
-│
-├── tests/                       # Vitest 测试
-│   ├── font-detector.test.ts
-│   └── font-fallback.test.ts
 │
 ├── vite.config.ts               # Vite 8 (Rolldown) 编译配置
 ├── build.mjs                    # 程序化多入口构建脚本（关键）
@@ -101,8 +98,6 @@ dist/
 ├── render.mjs.map
 ├── check-fonts.mjs       # node check-fonts.mjs → 列出字体
 ├── check-fonts.mjs.map
-├── scaffold.mjs          # node scaffold.mjs → 交互式生成
-├── scaffold.mjs.map
 ├── font-chain.mjs        # node font-chain.mjs → 生成字体链 JSONC
 ├── font-chain.mjs.map
 ├── post-process.mjs      # node post-process.mjs → 后期处理
@@ -142,7 +137,6 @@ dist/
 ## 🔗 相关链接
 
 - 技能入口：[skills/imagegen-magick/](../../skills/imagegen-magick/)
-- 技能文档：[skills/imagegen-magick/README.md](../../skills/imagegen-magick/README.md)
+- 技能文档：[skills/imagegen-magick/SKILL.md](../../skills/imagegen-magick/SKILL.md)
 - 设计规范：[`references/`](../../skills/imagegen-magick/references/)
-- 示例：[`examples/`](../../skills/imagegen-magick/examples/)
 - 上级 AGENTS.md：[`../../AGENTS.md`](../../AGENTS.md)

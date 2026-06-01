@@ -1,121 +1,83 @@
-# SVG 设计思路引导
+# Prompting best practices
 
-> 本文件教 Agent 如何从用户需求推导出 SVG 设计决策。给原则，不给配方。
+This file is about prompt structure, specificity, and iteration. See `sample-prompts.md` for copy/paste design specs.
 
-## 设计决策顺序
+## Structure
+- Use a consistent order: scene/backdrop -> subject -> key details -> constraints -> output intent.
+- Include intended use (ad, UI mock, infographic) to set the level of polish.
+- For complex requests, use short labeled lines instead of one long paragraph.
 
-拿到用户需求后，按以下顺序思考：
+## Specificity policy
+- If the user prompt is already specific and detailed, normalize it into a clean spec without adding creative requirements.
+- If the prompt is generic, you may add tasteful detail when it materially improves the output.
+- Treat examples in `sample-prompts.md` as fully-authored recipes, not as the default amount of augmentation to add to every request.
 
-```
-1. 主题理解 → 这张图要传达什么？
-2. 布局选择 → 元素怎么摆放？
-3. 配色方案 → 什么颜色表达这个主题？
-4. 字体层级 → 标题/正文/注释怎么区分？
-5. 装饰取舍 → 需要装饰吗？什么装饰？
-6. 约束定义 → 用户有什么硬性要求？
-```
+## Allowed and disallowed augmentation
 
-## Specificity Policy（细节策略）
+Allowed augmentation for generic prompts:
+- composition and framing cues
+- intended-use or polish-level hints
+- practical layout guidance
+- reasonable scene concreteness that supports the request
 
-- **用户需求详细时**：直接执行，不要额外加料
-- **用户需求模糊时**：补充合理细节（构图、色调、氛围），但不要发明用户没要求的东西
-- **不要做的事**：加用户没提到的角色、品牌色、故事元素
+Do not add:
+- extra characters, props, or objects that are not implied
+- brand palettes, slogans, or story beats that are not implied
+- arbitrary side-specific placement unless the surrounding layout supports it
 
-## Layout Principles（布局原则）
+## Composition and layout
+- Specify framing and viewpoint (close-up, wide, top-down) and placement only when it materially helps.
+- Call out negative space if the asset clearly needs room for UI or copy.
+- Avoid making left/right layout decisions unless the user or surrounding layout supports them.
 
-### 视觉层级
+## Constraints and invariants
+- State what must not change (`keep background unchanged`).
+- For edits, say `change only X; keep Y unchanged` and repeat invariants on every iteration to reduce drift.
 
-最重要的元素最大、最亮、最居中。次要元素小一些、暗一些、偏一些。
+## Text in images
+- Put literal text in quotes or ALL CAPS and specify typography (font style, size, color, placement).
+- Spell uncommon words letter-by-letter if accuracy matters.
+- For in-image copy, require verbatim rendering and no extra characters.
+- Use `references/font-handling.jsonc` for font chain (run `font-chain.mjs` first to generate).
 
-### 留白
+## Input images and references
+- Do not assume that every provided image is an edit target.
+- Label each image by index and role (`Image 1: edit target`, `Image 2: style reference`).
+- If the user provides images for style, composition, or mood guidance and does not ask to modify them, treat the request as generation with references.
+- If the user asks to preserve an existing image while changing specific parts, treat the request as an edit.
+- For compositing, describe how the images interact (`place the subject from Image 2 into Image 1`).
 
-元素之间留足呼吸空间。标题与副标题的间距 ≥ 副标题字号 × 1.2。元素与画布边界留 ≥ 5% 安全区域。
+## Iterate deliberately
+- Start with a clean base prompt, then make small single-change edits.
+- Re-specify critical constraints when you iterate.
+- Prefer one targeted follow-up at a time over rewriting the whole prompt.
 
-### 重心
+## SVG-specific guidance
+- Use `font-family` chain for all text (never single font name).
+- Decorative elements should use low opacity (0.3-0.6) to not overpower text.
+- For icons, use Iconify public API (`references/assets.md`).
+- Post-processing available via `post-process.mjs` for brightness, blur, vignette, format conversion.
 
-一张图只有一个视觉重心。如果标题是重心，装饰元素就不能抢戏。
+## Use-case tips
+Generate:
+- photorealistic-natural: Prompt as if a real photo is captured in the moment; use photography language (lens, lighting, framing); call for real texture; avoid over-stylized polish unless requested.
+- product-mockup: Describe the product/packaging and materials; ensure clean silhouette and label clarity; if in-image text is needed, require verbatim rendering and specify typography.
+- ui-mockup: Describe the target fidelity first (shippable mockup or low-fi wireframe), then focus on layout, hierarchy, and practical UI elements; avoid concept-art language.
+- infographic-diagram: Define the audience and layout flow; label parts explicitly; require verbatim text.
+- logo-brand: Keep it simple and scalable; ask for a strong silhouette and balanced negative space; avoid decorative flourishes unless requested.
+- illustration-story: Define panels or scene beats; keep each action concrete.
+- stylized-concept: Specify style cues, material finish, and rendering approach (3D, painterly, clay) without inventing new story elements.
+- historical-scene: State the location/date and required period accuracy; constrain clothing, props, and environment to match the era.
 
-### 不对称 ≠ 乱
+Edit:
+- text-localization: Change only the text; preserve layout, typography, spacing, and hierarchy; no extra words or reflow unless needed.
+- identity-preserve: Lock identity (face, body, pose, hair, expression); change only the specified elements; match lighting and shadows.
+- precise-object-edit: Specify exactly what to remove/replace; preserve surrounding texture and lighting; keep everything else unchanged.
+- lighting-weather: Change only environmental conditions (light, shadows, atmosphere, precipitation); keep geometry, framing, and subject identity.
+- background-extraction: Request a clean cutout; crisp silhouette; no halos; preserve label text exactly; no restyling.
+- style-transfer: Specify style cues to preserve (palette, texture, brushwork) and what must change; add `no extra elements` to prevent drift.
+- compositing: Reference inputs by index; specify what moves where; match lighting, perspective, and scale; keep the base framing unchanged.
+- sketch-to-render: Preserve layout, proportions, and perspective; choose materials and lighting that support the supplied sketch without adding new elements.
 
-不对称布局可以更有张力，但仍然需要平衡。左边放标题，右边放装饰，视觉重量要均等。
-
-## Color Principles（配色原则）
-
-### 对比度
-
-文字与背景的对比度必须足够。暗背景用亮文字，亮背景用暗文字。不确定时，用 WCAG 标准：对比度 ≥ 4.5:1。
-
-### 情绪色彩
-
-| 色彩情绪 | 适用场景 |
-|---------|---------|
-| 蓝/青 | 技术、专业、信任 |
-| 绿/青绿 | 自然、成长、PlantUML/开发工具 |
-| 橙/黄 | 活力、创意、警告 |
-| 红/粉 | 热情、紧急、女性化 |
-| 紫/蓝紫 | 创意、高端、神秘 |
-| 黑/灰 | 高端、简约、代码风 |
-
-### 主题关联
-
-配色应与博客主题关联。技术博客用冷色调，生活博客用暖色调，不要反过来。
-
-### 渐变 vs 纯色
-
-- 渐变：增加深度和层次感，适合背景
-- 纯色：干净利落，适合文字区域
-- 透明：用于需要叠加的场景（Logo、徽章）
-
-## Typography Principles（排版原则）
-
-### 字体层级
-
-一张图最多 3 级字体层级：
-1. 主标题：最大、最粗、最亮
-2. 副标题/标签：中等大小、中等粗细
-3. 注释/装饰文字：最小、最暗
-
-### 中英文混排
-
-使用字体链式 fallback，确保中英文都能正确渲染。中文和英文可以用不同字体，但风格要协调。
-
-### 间距
-
-字间距（letter-spacing）：标题可以加宽（1-3px），正文不要加。行间距：标题用 1.0-1.2，正文用 1.4-1.6。
-
-### 可读性优先
-
-好看但看不清 = 失败。确保文字在各种尺寸下都清晰可读。
-
-## Decoration Principles（装饰原则）
-
-### 少即是多
-
-装饰是配角，不是主角。如果装饰抢了标题的风头，就去掉它。
-
-### 与主题相关
-
-技术博客用代码片段/终端/几何图形。生活博客用植物/纹理/插画。不要在技术博客上放花朵装饰。
-
-### 不堆砌
-
-一张图最多 2-3 种装饰元素。多了就乱。
-
-### 透明度
-
-装饰元素用低透明度（0.3-0.6），让它们融入背景而不是跳出来。
-
-## Constraints（约束）
-
-用户指定的约束必须遵守：
-- 尺寸：必须精确匹配（如 900×383）
-- 颜色：用户指定的颜色不能改
-- 避免项：用户说"不要文字"就不要加文字
-- 风格：用户说"简约"就不要加花哨装饰
-
-## Iteration（迭代）
-
-- 每次只改一个设计决策
-- 改完重新渲染验证
-- 如果用户说"上一步很好"，保留那个版本
-- 最多 5 轮迭代
+## Where to find copy/paste recipes
+For copy/paste design specs (examples only), see `references/sample-prompts.md`. This file focuses on principles, specificity, and iteration patterns.

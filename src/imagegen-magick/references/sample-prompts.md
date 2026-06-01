@@ -1,163 +1,409 @@
-# 多样化设计示例
+# Sample prompts (copy/paste)
 
-> 这些示例展示不同的设计思路和风格，不是固定模板。Agent 根据用户需求选择最合适的思路，自行生成 SVG。
+Use these as starting points. They are intentionally complete prompt specs, not the default amount of augmentation to add to every user request.
 
----
+When adapting a user's prompt:
+- keep user-provided requirements
+- only add detail according to the specificity policy in `prompting.md`
+- do not treat every example below as permission to invent extra story elements
 
-## 技术博客封面
+The labeled lines are prompt scaffolding, not a closed schema.
 
-### 示例 1：暗色代码风
+For prompting principles (structure, specificity, invariants, iteration), see `references/prompting.md`.
 
+## Generate
+
+### photorealistic-natural
 ```
-场景：技术博客封面
-标题：Git 高级技巧
-副标题：从入门到放弃的反面教材
-风格：暗色背景 + 代码编辑器窗口装饰
-配色：深灰背景（#0D1117）+ 绿色高亮（#7EE787）+ 蓝色点缀（#58A6FF）
-布局：标题居中偏左，右侧放代码窗口装饰，底部标签
-装饰：代码片段、终端窗口、光标闪烁
-约束：900×383，中英文混排
-```
-
-### 示例 2：亮色简约风
-
-```
-场景：技术博客封面
-标题：Docker 入门指南
-副标题：容器化从零开始
-风格：白色/浅灰背景 + 彩色图标点缀
-配色：白色背景（#FFFFFF）+ 蓝色主色（#2496ED）+ 浅灰辅助（#F0F0F0）
-布局：标题居中，上方一个大 Docker 图标，底部简洁标签
-装饰：Docker 鲸鱼图标（从 Iconify 获取）、圆角矩形标签
-约束：900×383，不要代码片段
+Use case: photorealistic-natural
+Primary request: candid photo of an elderly sailor on a small fishing boat adjusting a net
+Scene/backdrop: coastal water with soft haze
+Subject: weathered skin with wrinkles and sun texture
+Style/medium: photorealistic candid photo
+Composition/framing: medium close-up, eye-level
+Lighting/mood: soft coastal daylight, shallow depth of field, subtle film grain
+Materials/textures: real skin texture, worn fabric, salt-worn wood
+Constraints: natural color balance; no heavy retouching; no glamorization; no watermark
+Avoid: studio polish; staged look
 ```
 
-### 示例 3：渐变几何风
-
+### product-mockup
 ```
-场景：技术博客封面
-标题：微服务架构设计
-副标题：拆还是不拆，这是个问题
-风格：渐变背景 + 抽象几何图形
-配色：蓝紫渐变（#667EEA → #764BA2）+ 白色文字
-布局：标题居中，背景用半透明几何形状（圆、方、三角）营造层次
-装饰：浮动的几何图形（低透明度）、虚线连接
-约束：900×383，不要写实元素
-```
-
----
-
-## 非技术博客封面
-
-### 示例 4：温暖插画风
-
-```
-场景：生活方式博客封面
-标题：周末烘焙日记
-副标题：从面粉到香气的旅程
-风格：暖色调 + 手绘质感
-配色：奶油白背景（#FFF8F0）+ 焦糖色（#D4A574）+ 粉色点缀（#FFB5B5）
-布局：标题居中偏上，下方装饰性插画元素
-装饰：手绘风格的面包/蛋糕轮廓（SVG path）、撒粉效果
-约束：900×383，温馨感，不要照片
+Use case: product-mockup
+Primary request: premium product photo of a matte black shampoo bottle with a minimal label
+Scene/backdrop: clean studio gradient from light gray to white
+Subject: single bottle centered with subtle reflection
+Style/medium: premium product photography
+Composition/framing: centered, slight three-quarter angle, generous padding
+Lighting/mood: softbox lighting, clean highlights, controlled shadows
+Materials/textures: matte plastic, crisp label printing
+Constraints: no logos or trademarks; no watermark
 ```
 
-### 示例 5：专业商务风
-
+### ui-mockup
 ```
-场景：商业分析博客封面
-标题：2026 年 SaaS 趋势
-副标题：数据驱动的决策指南
-风格：深色背景 + 数据可视化元素
-配色：深蓝背景（#1A1F36）+ 金色强调（#F0B429）+ 白色文字
-布局：标题左对齐，右侧放抽象数据图表装饰
-装饰：折线图/柱状图轮廓、数据点、网格线
-约束：900×383，专业感，不要花哨
+Use case: ui-mockup
+Primary request: mobile app home screen for a local farmers market with vendors and daily specials
+Asset type: mobile app screen
+Style/medium: realistic product UI, not concept art
+Composition/framing: clean vertical mobile layout with clear hierarchy
+Constraints: practical layout, clear typography, no logos or trademarks, no watermark
 ```
 
----
-
-## Logo / 徽章
-
-### 示例 6：极简图标
-
+### infographic-diagram
 ```
-场景：开源项目 Logo
-标题：PyForge
-副标题：无（纯图标）
-风格：极简几何 + 单色
-配色：深灰背景（#2D2D2D）+ 亮橙色图标（#FF6B35）
-布局：正方形画布，图标居中
-装饰：锤子+代码的抽象几何组合
-约束：1080×1080，极简，不要文字
+Use case: infographic-diagram
+Primary request: detailed infographic of an automatic coffee machine flow
+Scene/backdrop: clean, light neutral background
+Subject: bean hopper -> grinder -> brew group -> boiler -> water tank -> drip tray
+Style/medium: clean vector-like infographic with clear callouts and arrows
+Composition/framing: vertical poster layout, top-to-bottom flow
+Text (verbatim): "Bean Hopper", "Grinder", "Brew Group", "Boiler", "Water Tank", "Drip Tray"
+Constraints: clear labels, strong contrast, no logos or trademarks, no watermark
 ```
 
-### 示例 7：文字徽章
-
+### scientific-educational
 ```
-场景：GitHub README 徽章
-标题：BUILD: PASSING
-副标题：无
-风格：扁平化 + 圆角矩形
-配色：深色背景（#222）+ 绿色状态（#4CAF50）+ 白色文字
-布局：左半绿色（状态），右半深色（文字）
-装饰：无，纯文字+色块
-约束：300×20，极小尺寸，文字必须清晰
-```
-
----
-
-## 社交媒体图
-
-### 示例 8：信息密集型
-
-```
-场景：技术分享社交媒体图
-标题：10 个 VS Code 必装插件
-副标题：第 3 个改变了我的工作流
-风格：深色背景 + 编辑器截图风格
-配色：深灰背景（#1E1E1E）+ 蓝色高亮（#007ACC）+ 白色文字
-布局：标题居中，背景用代码行号和语法高亮色块装饰
-装饰：行号、语法高亮色块、光标
-约束：1200×630（OG 尺寸）
+Use case: scientific-educational
+Primary request: biology diagram titled "Cellular Respiration at a Glance" for high school students
+Scene/backdrop: clean white classroom handout background
+Subject: glucose turns into energy inside a cell; include glycolysis, Krebs cycle, and electron transport chain
+Style/medium: flat scientific diagram with consistent icons, arrows, and readable labels
+Composition/framing: landscape slide-style layout with clear hierarchy and generous whitespace
+Text (verbatim): "Cellular Respiration at a Glance", "Glucose", "Pyruvate", "ATP", "NADH", "FADH2", "CO2", "O2", "H2O"
+Constraints: scientifically plausible; avoid tiny text; no extra decoration; no watermark
 ```
 
-### 示例 9：大字报型
-
+### logo-brand
 ```
-场景：产品发布社交媒体图
-标题：v2.0 来了
-副标题：重写，从第一行代码开始
-风格：纯色背景 + 超大标题
-配色：渐变背景（#FF6B6B → #4ECDC4）+ 白色超大文字
-布局：标题占画面 60%，超大字号，无其他装饰
-装饰：无，纯文字冲击力
-约束：1080×1080，标题必须大到占满宽度
+Use case: logo-brand
+Primary request: original logo for "Field & Flour", a local bakery
+Style/medium: vector logo mark; flat colors; minimal
+Composition/framing: single centered logo on a plain background with generous padding
+Constraints: strong silhouette, balanced negative space; original design only; no gradients unless essential; no trademarks; no watermark
 ```
 
----
-
-## 信息图
-
-### 示例 10：流程图风格
-
+### illustration-story
 ```
-场景：知识类信息图
-标题：CI/CD 流程全景
-副标题：从代码提交到生产部署
-风格：深色背景 + 流程图连线
-配色：深蓝背景（#0D1117）+ 青色连线（#4EC9B0）+ 白色文字
-布局：从左到右的流程，每个节点是圆角矩形
-装饰：节点之间的箭头连线、步骤编号
-约束：900×383，流程清晰可读
+Use case: illustration-story
+Primary request: 4-panel comic about a pet left alone at home
+Scene/backdrop: cozy living room across panels
+Subject: pet reacting to the owner leaving, then relaxing, then returning to a composed pose
+Style/medium: comic illustration with clear panels
+Composition/framing: 4 equal-sized vertical panels, readable actions per panel
+Constraints: no text; no logos or trademarks; no watermark
 ```
 
----
+### stylized-concept
+```
+Use case: stylized-concept
+Primary request: cavernous hangar interior with tall support beams and drifting fog
+Scene/backdrop: industrial hangar interior, deep scale, light haze
+Subject: compact shuttle parked near the center
+Style/medium: cinematic concept art, industrial realism
+Composition/framing: wide-angle, low-angle
+Lighting/mood: volumetric light rays cutting through fog
+Constraints: no logos or trademarks; no watermark
+```
 
-## 使用说明
+### ads-marketing
+```
+Use case: ads-marketing
+Primary request: campaign image for a streetwear brand called Thread
+Subject: group of friends hanging out together in a stylish urban setting
+Style/medium: polished youth streetwear campaign photography
+Composition/framing: vertical ad layout with natural poses and integrated headline space
+Lighting/mood: contemporary, energetic, tasteful
+Text (verbatim): "Yours to Create."
+Constraints: render the tagline exactly once; clean legible typography; no extra text; no watermarks; no unrelated logos
+```
 
-1. 以上示例展示的是**设计思路**，不是 SVG 代码
-2. Agent 根据用户需求选择最接近的示例作为起点
-3. 可以混合多个示例的元素（如示例 1 的暗色 + 示例 3 的几何）
-4. **不要复制示例的配色/布局**，要根据实际博客主题重新设计
-5. 参考 `prompting.md` 中的原则做设计决策
+### productivity-visual
+```
+Use case: productivity-visual
+Primary request: one pitch-deck slide titled "Market Opportunity"
+Asset type: fundraising slide image
+Style/medium: clean modern deck slide, white background, crisp sans-serif typography
+Subject: TAM/SAM/SOM concentric-circle diagram plus a small growth bar chart from 2021 to 2026
+Composition/framing: 16:9 landscape slide, clear data hierarchy, polished spacing
+Text (verbatim): "Market Opportunity", "TAM: $42B", "SAM: $8.7B", "SOM: $340M", "AGI Research, 2024", "Internal analysis"
+Constraints: readable labels, no clip art, no stock photography, no decorative clutter, no watermark
+```
+
+### historical-scene
+```
+Use case: historical-scene
+Primary request: outdoor crowd scene in Bethel, New York on August 16, 1969
+Scene/backdrop: open field with period-appropriate staging
+Subject: crowd in period-accurate clothing, authentic environment
+Style/medium: photorealistic photo
+Composition/framing: wide shot, eye-level
+Constraints: period-accurate details; no modern objects; no logos or trademarks; no watermark
+```
+
+## Asset type templates (taxonomy-aligned)
+
+### Website assets template
+```
+Use case: <photorealistic-natural|stylized-concept|product-mockup|infographic-diagram|ui-mockup>
+Asset type: <hero image / section illustration / blog header>
+Primary request: <short description>
+Scene/backdrop: <environment or abstract backdrop>
+Subject: <main subject>
+Style/medium: <photo/illustration/3D>
+Composition/framing: <wide/centered; note usable negative space only if needed>
+Lighting/mood: <soft/bright/neutral>
+Color palette: <brand colors or neutral>
+Constraints: <no text; no logos; no watermark; leave room for UI if needed>
+```
+
+### Website assets example: minimal hero background
+```
+Use case: stylized-concept
+Asset type: landing page hero background
+Primary request: minimal abstract background with a soft gradient and subtle texture
+Style/medium: matte illustration / soft-rendered abstract background
+Composition/framing: wide composition with usable negative space for page copy
+Lighting/mood: gentle studio glow
+Color palette: restrained neutral palette
+Constraints: no text; no logos; no watermark
+```
+
+### Website assets example: feature section illustration
+```
+Use case: stylized-concept
+Asset type: feature section illustration
+Primary request: simple abstract shapes suggesting connection and flow
+Scene/backdrop: subtle light-gray backdrop with faint texture
+Style/medium: flat illustration; soft shadows; restrained contrast
+Composition/framing: centered cluster; open margins for UI
+Color palette: muted neutral palette
+Constraints: no text; no logos; no watermark
+```
+
+### Website assets example: blog header image
+```
+Use case: photorealistic-natural
+Asset type: blog header image
+Primary request: overhead desk scene with notebook, pen, and coffee cup
+Scene/backdrop: warm wooden tabletop
+Style/medium: photorealistic photo
+Composition/framing: wide crop with clean room for page copy
+Lighting/mood: soft morning light
+Constraints: no text; no logos; no watermark
+```
+
+### Game assets template
+```
+Use case: stylized-concept
+Asset type: <game environment concept art / game character concept / game UI icon / tileable game texture>
+Primary request: <biome/scene/character/icon/material>
+Scene/backdrop: <location + set dressing> (if applicable)
+Subject: <main focal element(s)>
+Style/medium: <realistic/stylized>; <concept art / character render / UI icon / texture>
+Composition/framing: <wide/establishing/top-down>; <camera angle>; <focal point placement>
+Lighting/mood: <time of day>; <mood>; <volumetric/fog/etc>
+Constraints: no logos or trademarks; no watermark
+```
+
+### Game assets example: environment concept art
+```
+Use case: stylized-concept
+Asset type: game environment concept art
+Primary request: cavernous hangar interior with tall support beams and drifting fog
+Scene/backdrop: industrial hangar interior, deep scale, light haze
+Subject: compact shuttle parked near the center
+Style/medium: cinematic concept art, industrial realism
+Composition/framing: wide-angle, low-angle
+Lighting/mood: volumetric light rays cutting through fog
+Constraints: no logos or trademarks; no watermark
+```
+
+### Game assets example: character concept
+```
+Use case: stylized-concept
+Asset type: game character concept
+Primary request: desert scout character with layered travel gear
+Subject: long coat, satchel, practical travel clothing
+Style/medium: character render; stylized realism
+Composition/framing: neutral hero pose on a simple backdrop
+Constraints: no logos or trademarks; no watermark
+```
+
+### Game assets example: UI icon
+```
+Use case: stylized-concept
+Asset type: game UI icon
+Primary request: round shield icon with a subtle rune pattern
+Style/medium: painted game UI icon
+Composition/framing: centered icon; generous padding; clear silhouette
+Constraints: no text; no background scene elements; no logos or trademarks; no watermark
+```
+
+### Game assets example: tileable texture
+```
+Use case: stylized-concept
+Asset type: tileable game texture
+Primary request: worn sandstone blocks
+Style/medium: seamless tileable texture; PBR-ish look
+Scene/backdrop: neutral lighting reference only
+Constraints: seamless edges; no obvious focal elements; no text; no logos or trademarks; no watermark
+```
+
+### Wireframe template
+```
+Use case: ui-mockup
+Asset type: website wireframe
+Primary request: <page or flow to sketch>
+Style/medium: low-fi grayscale wireframe
+Composition/framing: <landscape or portrait to match expected device>
+Subject: <sections in order; grid/columns; key labels>
+Constraints: no color; no logos; no real photos; no watermark
+```
+
+### Wireframe example: homepage (desktop)
+```
+Use case: ui-mockup
+Asset type: website wireframe
+Primary request: SaaS homepage layout with clear hierarchy
+Style/medium: low-fi grayscale wireframe
+Subject: top nav; hero with headline and CTA; three feature cards; testimonial strip; pricing preview; footer
+Composition/framing: landscape desktop layout
+Constraints: label major blocks; no color; no logos; no real photos; no watermark
+```
+
+### Wireframe example: pricing page
+```
+Use case: ui-mockup
+Asset type: website wireframe
+Primary request: pricing page layout with comparison table
+Style/medium: low-fi grayscale wireframe
+Subject: header; plan toggle; 3 pricing cards; comparison table; FAQ accordion; footer
+Composition/framing: desktop or tablet layout
+Constraints: label key areas; no color; no logos; no real photos; no watermark
+```
+
+### Wireframe example: mobile onboarding flow
+```
+Use case: ui-mockup
+Asset type: mobile onboarding wireframe
+Primary request: three-screen mobile onboarding flow
+Style/medium: low-fi grayscale wireframe
+Subject: screen 1 headline and CTA; screen 2 feature bullets; screen 3 form fields and CTA
+Composition/framing: portrait mobile layout
+Constraints: label screens and blocks; no color; no logos; no real photos; no watermark
+```
+
+### Logo template
+```
+Use case: logo-brand
+Asset type: logo concept
+Primary request: <brand idea or symbol concept>
+Style/medium: vector logo mark; flat colors; minimal
+Composition/framing: centered mark; clear silhouette; generous margin
+Color palette: <1-2 colors; high contrast>
+Text (verbatim): "<exact name>" (only if needed)
+Constraints: no gradients; no mockups; no 3D; no watermark
+```
+
+### Logo example: abstract symbol mark
+```
+Use case: logo-brand
+Asset type: logo concept
+Primary request: geometric leaf symbol suggesting sustainability and growth
+Style/medium: vector logo mark; flat colors; minimal
+Composition/framing: centered mark; clear silhouette
+Color palette: deep green and off-white
+Constraints: no text unless requested; no gradients; no mockups; no 3D; no watermark
+```
+
+### Logo example: monogram mark
+```
+Use case: logo-brand
+Asset type: logo concept
+Primary request: interlocking monogram of the letters "AV"
+Style/medium: vector logo mark; flat colors; minimal
+Composition/framing: centered mark; balanced spacing
+Color palette: black on white
+Constraints: no gradients; no mockups; no 3D; no watermark
+```
+
+### Logo example: wordmark
+```
+Use case: logo-brand
+Asset type: logo concept
+Primary request: clean wordmark for a modern studio
+Style/medium: vector wordmark; flat colors; minimal
+Text (verbatim): "Studio North"
+Composition/framing: centered text; even letter spacing
+Constraints: no gradients; no mockups; no 3D; no watermark
+```
+
+## Edit
+
+### text-localization
+```
+Use case: text-localization
+Input images: Image 1: original infographic
+Primary request: replace "Bean Hopper", "Grinder", "Brew Group", "Boiler", "Water Tank", and "Drip Tray" with "Tolva", "Molino", "Grupo de infusión", "Caldera", "Depósito de agua", and "Bandeja de goteo"
+Constraints: change only the text; preserve layout, typography, spacing, and hierarchy; no extra words; do not alter logos or imagery
+```
+
+### identity-preserve
+```
+Use case: identity-preserve
+Input images: Image 1: person photo; Image 2..N: clothing references
+Primary request: replace only the clothing with the provided garments
+Constraints: preserve face, body shape, pose, hair, expression, and identity; match lighting and shadows; keep the background unchanged; no accessories or text
+```
+
+### precise-object-edit
+```
+Use case: precise-object-edit
+Input images: Image 1: room photo
+Primary request: replace only the white chairs with wooden chairs
+Constraints: preserve camera angle, room lighting, floor shadows, and surrounding objects; keep all other aspects unchanged
+```
+
+### lighting-weather
+```
+Use case: lighting-weather
+Input images: Image 1: original photo
+Primary request: make it look like a winter evening with gentle snowfall
+Constraints: preserve subject identity, geometry, camera angle, and composition; change only lighting, atmosphere, and weather
+```
+
+### style-transfer
+```
+Use case: style-transfer
+Input images: Image 1: style reference
+Primary request: apply Image 1's visual style to a man riding a motorcycle on a plain white backdrop
+Constraints: preserve palette, texture, and brushwork; no extra elements
+```
+
+### compositing
+```
+Use case: compositing
+Input images: Image 1: base scene; Image 2: subject to insert
+Primary request: place the subject from Image 2 next to the person in Image 1
+Constraints: match lighting, perspective, and scale; keep the base framing unchanged; no extra elements
+```
+
+### character consistency workflow
+```
+Use case: identity-preserve
+Input images: Image 1: previous character anchor illustration
+Primary request: continue the story with the same character in a new scene and action
+Scene/backdrop: snowy forest after a winter storm
+Subject: same young forest hero gently helping a frightened squirrel out of a fallen tree
+Style/medium: same children's book watercolor illustration style as Image 1
+Constraints: do not redesign the character; preserve facial features, proportions, outfit, color palette, and personality; no text; no watermark
+```
+
+### sketch-to-render
+```
+Use case: sketch-to-render
+Input images: Image 1: drawing
+Primary request: turn the drawing into a photorealistic image
+Constraints: preserve layout, proportions, and perspective; choose realistic materials and lighting; do not add new elements or text
+```

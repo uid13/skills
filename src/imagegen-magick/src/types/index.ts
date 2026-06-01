@@ -132,34 +132,4 @@ export interface EnvironmentInfo {
   issues: string[]
 }
 
-// ============================================================
-// scaffold 交互类型
-// ============================================================
 
-/**
- * 用户选择的结果
- */
-export interface ScaffoldAnswers {
-  /** 输出尺寸（宽x高） */
-  size: { width: number; height: number }
-  /** 整体风格描述 */
-  style: string
-  /** 主标题内容 */
-  title: string
-  /** 副标题内容（可选） */
-  subtitle?: string
-  /** 字体选择 */
-  fontName: string
-  /** 背景类型（渐变/纯色/透明） */
-  backgroundType: 'gradient' | 'solid' | 'transparent'
-  /** 背景颜色配置 */
-  backgroundColor?: {
-    start: string
-    end: string
-    direction?: 'horizontal' | 'vertical' | 'diagonal'
-  }
-  /** 是否添加装饰元素 */
-  decorations: string[]
-  /** 输出 SVG 路径 */
-  outputPath: string
-}
