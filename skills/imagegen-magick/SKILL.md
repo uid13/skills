@@ -179,14 +179,20 @@ Constraints: <必须保留 / 必须避免>
 
 ### Phase 3: 设计与生成
 
-根据 Phase 2 的设计 spec，**生成完整可用的 SVG 代码**。
+**准备素材**（必做）：
+- 根据主题关键词搜索 Iconify 图标（如技术主题搜 `terminal` `code` `server` `cloud`）
+- 选取 2-3 个与主题匹配的图标，嵌入 SVG 设计中
+- 图标颜色必须与配色方案一致，不要用默认颜色
+- 详细用法见 `references/assets.md`（API 地址、推荐图标集、嵌入方式）
+
+**生成 SVG 代码**：
+根据 Phase 2 的设计 spec，生成完整可用的 SVG 代码。
 
 **重要原则**：
 - 设计思路参考 `references/prompting.md`
 - 多样化设计示例参考 `references/sample-prompts.md`
 - 字体处理参考 `references/font-handling.jsonc`（Phase 1 已生成）
 - 必须使用 `font-family` 链式 fallback（不要单字体名）
-- 可通过 Iconify 公共 API 获取图标素材（详见 `references/assets.md`）
 
 ```xml
 <!-- 示例：字体链式 fallback -->
@@ -204,7 +210,7 @@ Constraints: <必须保留 / 必须避免>
 node <skill-dir>/scripts/dist/render.mjs design-v1.svg -o design-v1.png
 ```
 
-Inspect outputs and validate: 文字渲染（乱码/豆腐块/空白字）、主体与构图、元素对齐与间距、背景与文字对比、边界溢出、用户指定的约束（尺寸/风格/避免项）。
+Inspect outputs and validate: 文字渲染（乱码/豆腐块/空白字）、主体与构图、元素对齐与间距、**元素重叠**（文本/图标/装饰元素之间是否互相覆盖）、背景与文字对比、边界溢出、用户指定的约束（尺寸/风格/避免项）。
 
 发现问题时的处理：
 Iterate with a single targeted change, then re-check.

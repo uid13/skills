@@ -38,6 +38,9 @@ async function buildEntry(name, isFirst) {
         sourcemap: true,
         minify: false,
       },
+      ssr: {
+        noExternal: ['commander'],
+      },
       rolldownOptions: {
         external: [/^node:/],
       },
