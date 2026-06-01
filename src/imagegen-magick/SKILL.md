@@ -7,36 +7,7 @@ description: "生成或编辑矢量/程序化图像（博客封面、Logo、图�
 
 使用 **SVG + ImageMagick + AI 识图自检** 工作流，程序化生成高质量的矢量风格图像。
 
-## 何时使用此技能
-
-✅ **适合**：
-- 博客封面图（微信公众号、掘金、Medium、知乎）
-- 社交媒体封面（抖音、小红书、Twitter/X、YouTube 缩略图）
-- Logo、Icon、徽章（徽章、角标）
-- 信息图表、数据可视化图
-- UI 组件 Mockup
-- PPT / 幻灯片封面
-- 代码片段展示图
-- 带精确文字排版的任何设计
-
-❌ **不适合**（请改用其他生图技能）：
-- 照片级写实图像（人像、风景、产品实拍）
-- 复杂纹理（毛皮、水面、烟雾、光线）
-- 艺术插画（油画、水彩、素描风格）
-- 人物肖像、卡通形象
-
-## 技术栈
-
-| 组件 | 角色 | 说明 |
-|------|------|------|
-| SVG | 设计描述 | 用矢量代码描述图形布局 |
-| ImageMagick | 渲染引擎 | SVG → PNG/JPEG/...，跨平台可用 |
-| 系统字体 | 文字渲染 | 优先 Cascadia Code，自动 fallback |
-| AI Agent（当前模型） | 创意 + 验证 | 写代码、验证输出、迭代修复 |
-
-**核心理念**：让 AI 写代码而不是生成图像，所有视觉元素都可精确控制、可复现、可协作。
-
-## 六个核心工具
+## 核心工具
 
 本技能提供 6 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
 
@@ -119,12 +90,6 @@ node <skill-dir>/scripts/dist/font-chain.mjs [--json] [--dry-run] [--quiet]
 
 **执行时机**：Agent 首次使用技能时**必须执行**，后续字体变化时可重新执行。
 
-**工作流程**：
-1. 执行 `magick identify -list font` 获取所有字体
-2. 按关键字分类到 code/cjk/sans/serif 四个类别
-3. 按 curated 优先级列表排序（如 Cascadia Next SC NF 排首位）
-4. 输出 JSONC 文件供 `font-fallback.ts` 和 Agent 读取
-
 **输出**：`references/font-handling.jsonc`（JSONC 格式，带注释，机器可读）
 
 ### 6. `post-process.mjs` — 图像后期处理
@@ -155,10 +120,10 @@ node <skill-dir>/scripts/dist/post-process.mjs <input> [options] -o <output>
 node <skill-dir>/scripts/dist/info.mjs
 ```
 
-- 如果 ImageMagick 未安装：告知用户安装指引（见 FAQ）
+- 如果 ImageMagick 未安装：告知用户安装（`winget install ImageMagick.ImageMagick` 或 `brew install imagemagick`）
 - 记录首选字体（`preferredFont.usedName`），后续 SVG 中使用
 
-### Phase 2: 需求收集（关键）
+### Phase 2: 需求收集
 
 **向用户询问**（用 scaffold.mjs 或对话形式）：
 
@@ -207,15 +172,14 @@ node <skill-dir>/scripts/dist/info.mjs
 
 ```xml
 <!-- 示例：字体链式 fallback -->
-<text font-family='"Cascadia Code", "Fira Code", "JetBrains Mono",
-                  "Microsoft YaHei", "PingFang SC", system-ui, sans-serif'>
+<text font-family='"Cascadia Next SC NF", "Cascadia Code", "SimHei", sans-serif'>
   中文 + English
 </text>
 ```
 
 **写入 SVG 文件**（推荐命名 `design-v1.svg`），然后用 `render.mjs` 渲染。
 
-### Phase 4: 渲染与验证闭环（关键！）
+### Phase 4: 渲染与验证闭环
 
 ```bash
 # 渲染
@@ -250,7 +214,7 @@ checklist 是基础保障，但不能覆盖所有情况。完成 checklist 后�
 - 是否有意外的视觉干扰或噪点？
 
 发现问题时的处理：
-- 如果某项未通过，**一次只修一个问题**（参考单次迭代规则）
+- 如果某项未通过，**一次只修一个问题**
 - 修复后重新走 Phase 4（重新渲染 + 重新验证）
 - 最多 5 轮迭代
 
@@ -286,11 +250,6 @@ checklist 是基础保障，但不能覆盖所有情况。完成 checklist 后�
 第 3 次迭代：只优化装饰颜色
 ```
 
-**好处**：
-- 容易定位问题（如果改坏了知道是哪一步）
-- 用户容易反馈（"上一步很好，但新改的部分不好"）
-- 减少意外破坏
-
 ## 透明背景特殊处理
 
 当用户需要**透明 PNG**（如 Logo、徽章、水印）：
@@ -313,7 +272,7 @@ SVG 中**不要**写背景层：
 </svg>
 ```
 
-## 字体智能 Fallback
+## 字体 Fallback
 
 本技能内置字体 fallback 策略，保证用户**无需手动安装 Cascadia**也能渲染。
 
@@ -327,39 +286,6 @@ SVG 中**不要**写背景层：
 | 衬线西文 | 见 `references/font-handling.jsonc` → serif.chain |
 
 **数据来源**：`references/font-handling.jsonc` 由 `font-chain.mjs` 从 `magick identify -list font` 动态生成，反映当前系统真实可用字体。
-
-**Fallback 策略**：JSONC 不存在时，代码内置硬编码默认候选列表（兜底）。
-
-## 何时不使用此技能
-
-以下情况**应该告诉用户**不适合，并建议其他方案：
-
-| 用户需求 | imagegen-magick 是否合适 | 建议替代方案 |
-|---------|-------------------------|-------------|
-| "帮我画一张卡通插画" | ❌ | 使用图像生成 API（gpt-image / Wanx 等） |
-| "生成一张产品实拍图" | ❌ | 使用图像生成 API |
-| "做一张科技感封面图" | ✅ | 可以，用代码渲染几何图案 |
-| "做微信公号文章封面" | ✅ | 非常适合 |
-| "画一个可爱猫咪" | ❌ | 需要生成模型 |
-| "给 README 做徽章" | ✅ | SVG badge + ImageMagick 完美适配 |
-
-## 错误诊断
-
-如果任务执行异常，先运行 info 工具：
-
-```bash
-node <skill-dir>/scripts/dist/info.mjs
-```
-
-常见错误与解决方案：
-
-| 错误现象 | 可能原因 | 解决 |
-|---------|---------|------|
-| "magick 未找到" | ImageMagick 未安装 | 参见 FAQ |
-| "未检测到任何字体" | IM 与 fc-list 都失败 | 检查 IM 安装；安装 fontconfig |
-| "中文字符显示为方块" | 无中文字体 | `check-fonts --recommend cjk` 查看可用字体 |
-| "渲染后文字模糊" | density/scale 不够 | 使用 `--scale 3x` 提高分辨率 |
-| "输出文件覆盖" | 未传 --force | 默认已保护（自动 -1 -2 命名），可用 --force 强制覆盖 |
 
 ## 参考文档（按需加载）
 
@@ -376,65 +302,3 @@ node <skill-dir>/scripts/dist/info.mjs
 ## 示例（按需阅读）
 
 - [`examples/wechat-article-cover.md`](./examples/wechat-article-cover.md) — 微信公众号封面完整生成示例
-
-## 常见问题（FAQ）
-
-### Q: 怎么安装 ImageMagick？
-
-**Windows（推荐用 mise）**：
-```bash
-# 用 mise 安装
-mise install github:ImageMagick/ImageMagick
-
-# 或 winget
-winget install ImageMagick.ImageMagick
-```
-
-**macOS**：
-```bash
-brew install imagemagick
-```
-
-**Linux (Ubuntu/Debian)**：
-```bash
-sudo apt install imagemagick
-```
-
-### Q: 中文渲染乱码，怎么办？
-
-1. 先确认系统中文字体可用：
-   ```bash
-   node <skill-dir>/scripts/dist/check-fonts.mjs --recommend cjk
-   ```
-2. 如无中文字体，安装微软雅黑（Windows 自带）/ PingFang SC（macOS 自带）/ Noto Sans CJK（Linux）
-3. SVG 中使用字体链式 fallback（不要单字体名）：
-   ```xml
-   <text font-family='"Cascadia Code", "Microsoft YaHei", system-ui'>
-   ```
-
-### Q: 渲染 PNG 太大（几 MB），怎么优化？
-
-- 降低 `--quality 80`（默认 95）
-- 减小 `--scale 1x`（默认 2x）
-- 用 ImageMagick 后处理压缩（详见 `references/imagemagick-commands.md`）
-
-### Q: 我可以让 AI 直接生图，为什么还要走程序化路线？
-
-| 路线 | 适用场景 |
-|------|---------|
-| **图像生成 API**（gpt-image、Wanx、SDXL） | 照片、艺术插画、复杂纹理 |
-| **程序化生成（本技能）** | 设计类、文字排版、UI 组件、Logo |
-
-**程序化的优势**：
-- 文字精确（不会乱码）
-- 完全可控制（像素级）
-- 可复现（同一 SVG 永远输出一致）
-- 可协作（SVG 是代码，可以 diff/review）
-- 零成本（无需 API 费用）
-
-## 致谢
-
-本技能设计参考：
-- [OpenAI imagegen skill](https://github.com/openai/skills/tree/main/skills/.system/imagegen) — 工作流设计
-- [Agent Skills 开放标准](https://agentskills.io/) — 规范遵循
-- [Anthropic skills](https://github.com/anthropics/skills) — 社区最佳实践
