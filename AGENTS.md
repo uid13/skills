@@ -22,7 +22,7 @@
 skills-uid13/
 ├── src/                           # 源码目录（TypeScript 开发时）
 │   ├── imagegen-magick/           # 图像生成技能（当前实现）
-│   │   ├── src/bin/               # CLI 入口（render/check-fonts/info/scaffold）
+│   │   ├── src/bin/               # CLI 入口（info/render/check-fonts/font-chain/post-process）
 │   │   ├── src/lib/               # 工具库（font/magick/colors/spawn）
 │   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
 │   │   ├── build.mjs              # 程序化多入口构建脚本
@@ -37,11 +37,10 @@ skills-uid13/
 │
 ├── skills/                        # 输出产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
-│   │   ├── SKILL.md               # 技能入口文件（方法论）
+│   │   ├── SKILL.md               # 技能入口文件（工作流方法论）
+│   │   ├── README.md              # 用户文档（由 build 自动拷贝）
 │   │   ├── references/            # 按需加载的参考文档
-│   │   ├── examples/              # 场景示例
-│   │   ├── scripts/dist/*.mjs     # 编译后的 CLI 工具
-│   │   └── README.md              # 用户视角的文档
+│   │   └── scripts/dist/*.mjs     # 编译后的 CLI 工具
 │   └── music/
 │       ├── SKILL.md
 │       └── scripts/dist/          # 编译后的 .mjs 文件
@@ -104,10 +103,11 @@ export async function detectFonts(): Promise<FontInfo[]> {
 ### 5. 单一职责
 
 每个工具只负责一件事：
-- `render.mjs`：SVG → PNG 渲染
 - `info.mjs`：环境信息检查
 - `check-fonts.mjs`：字体列表与推荐
-- `scaffold.mjs`：交互式生成 SVG 骨架
+- `render.mjs`：SVG → PNG 渲染
+- `font-chain.mjs`：生成字体链配置（font-handling.jsonc）
+- `post-process.mjs`：图像后期处理（调色、模糊、格式转换等）
 - `music.mjs`：音乐播放控制（单入口，内部通过 commander 分发子命令）
 
 方法识别（SKILL.md 文档）决定调用哪个工具。
@@ -202,8 +202,10 @@ npm run test
 | `package.json` | Monorepo 根配置 |
 | `tsconfig.json` | TypeScript 根配置（noEmit=true，仅用于类型检查） |
 | `src/*/vite.config.ts` | 各技能的 Vite 8 (Rolldown) 编译配置 |
-| `src/*/build.mjs` | 各技能的程序化多入口构建脚本（避免 chunk 拆分） |
+| `src/*/build.mjs` | 构建脚本（当前仅 imagegen-magick 有自定义构建） |
 | `skills/*/SKILL.md` | 技能入口文档（符合 Agent Skills 规范） |
+| `skills/*/README.md` | 用户文档（由 build 从 src 自动拷贝） |
+| `skills/*/references/` | 按需加载的参考文档（由 build 从 src 自动拷贝） |
 
 ## 重要警告
 
