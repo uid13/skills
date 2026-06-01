@@ -14,7 +14,7 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 
 | 技能 | 说明 | 状态 |
 |------|------|------|
-| **imagegen-magick** | 程序化图像生成（SVG + ImageMagick + Iconify 图标 + 字体 fallback） | v1.4.2 |
+| **imagegen-magick** | 程序化图像生成（SVG + ImageMagick + 内置字体 + Iconify 图标） | v1.5.0 |
 | **music** | 在线音乐播放（基于 mpv + yt-dlp） | 已实现 |
 
 ## 安装
@@ -27,7 +27,7 @@ npx skills add https://github.com/uid13/skills.git
 npx skills add https://github.com/uid13/skills.git --skill imagegen-magick
 
 # 锁定版本（推荐生产使用）
-npx skills add https://github.com/uid13/skills.git --skill imagegen-magick --pin v1.4.2
+npx skills add https://github.com/uid13/skills.git --skill imagegen-magick --pin v1.5.0
 ```
 
 ## 项目结构
@@ -51,6 +51,7 @@ skills-uid13/
 │   │   ├── SKILL.md               # 技能入口（工作流）
 │   │   ├── README.md              # 用户文档
 │   │   ├── references/            # 按需加载的参考文档
+│   │   ├── fonts/                 # 内置字体（Cascadia Next SC NF）
 │   │   └── scripts/dist/*.mjs     # 编译后的 CLI 工具
 │   └── music/
 │       ├── SKILL.md

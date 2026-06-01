@@ -23,7 +23,7 @@
 export { execMagick, execMagickOrThrow } from './core.js'
 
 // 检测
-export { detectEnvironment, listFonts, listFormats } from './detection.js'
+export { detectEnvironment, listFormats } from './detection.js'
 
 // 渲染
 export { renderSvg } from './render.js'
@@ -39,12 +39,11 @@ export { FormatOps } from './dimensions/format.js'
 export { ImageProcessor } from './processor.js'
 
 // 类型
-export type { Operation, Dimension, RenderOptions, RenderResult, MagickInfo, FontInfo } from './types.js'
+export type { Operation, Dimension, RenderOptions, RenderResult, MagickInfo } from './types.js'
 
 // 便捷 API
 export const magick = {
   detect: detectEnvironment,
-  listFonts,
   listFormats,
   render: renderSvg,
 }

@@ -12,7 +12,7 @@
  * - magick/dimensions/  处理维度（几何/颜色/滤镜/艺术/格式）
  */
 
-import { detectEnvironment, listFonts as _listFonts, listFormats } from './magick/detection.js'
+import { detectEnvironment, listFormats } from './magick/detection.js'
 import { renderSvg } from './magick/render.js'
 import type { MagickInfo } from './magick/types.js'
 
@@ -21,19 +21,6 @@ import type { MagickInfo } from './magick/types.js'
  */
 async function detectImageMagick(): Promise<MagickInfo> {
   return detectEnvironment()
-}
-
-/**
- * 列出系统字体（向后兼容旧 API）
- */
-async function listFonts(
-  filter?: string
-): Promise<Array<{ family: string; file: string }>> {
-  const allFonts = await _listFonts()
-  if (!filter) return allFonts
-  return allFonts.filter(f =>
-    f.family.toLowerCase().includes(filter.toLowerCase())
-  )
 }
 
 /**
@@ -47,7 +34,6 @@ async function getInfo(): Promise<MagickInfo> {
 export const magick = {
   detect: detectImageMagick,
   renderSvg,
-  listFonts,
   listFormats,
   getInfo,
 } as const

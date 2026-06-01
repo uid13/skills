@@ -8,7 +8,7 @@
  */
 
 import { execMagick } from './core.js'
-import type { MagickInfo, FontInfo } from './types.js'
+import type { MagickInfo } from './types.js'
 
 /**
  * 检测 ImageMagick 环境
@@ -45,34 +45,6 @@ export async function detectEnvironment(): Promise<MagickInfo> {
     executable: 'magick',
     formats,
   }
-}
-
-/**
- * 列出系统所有字体
- *
- * 执行 `magick identify -list font` 解析字体族名和文件路径
- */
-export async function listFonts(): Promise<FontInfo[]> {
-  const result = await execMagick(['identify', '-list', 'font'], 10000)
-  if (!result.success) return []
-
-  // 按 "Font: xxx" 分块（Font: 行可能有前导空格缩进）
-  const blocks = result.stdout.split(/^\s*Font:\s+/m).slice(1)
-  const fonts: FontInfo[] = []
-
-  for (const block of blocks) {
-    const familyMatch = block.match(/family:\s*(.+)$/m)
-    const fileMatch = block.match(/glyphs:\s*(.+)$/m)
-
-    if (familyMatch && fileMatch) {
-      fonts.push({
-        family: familyMatch[1].trim(),
-        file: fileMatch[1].trim(),
-      })
-    }
-  }
-
-  return fonts
 }
 
 /**

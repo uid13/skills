@@ -7,7 +7,6 @@
 
 // 从公共类型 re-export（唯一来源）
 export type {
-  FontInfo,
   MagickInfo,
   RenderOptions,
   RenderResult,

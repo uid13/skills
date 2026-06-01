@@ -3220,30 +3220,6 @@ async function detectEnvironment() {
 	};
 }
 /**
-* 列出系统所有字体
-*
-* 执行 `magick identify -list font` 解析字体族名和文件路径
-*/
-async function listFonts$1() {
-	const result = await execMagick([
-		"identify",
-		"-list",
-		"font"
-	], 1e4);
-	if (!result.success) return [];
-	const blocks = result.stdout.split(/^\s*Font:\s+/m).slice(1);
-	const fonts = [];
-	for (const block of blocks) {
-		const familyMatch = block.match(/family:\s*(.+)$/m);
-		const fileMatch = block.match(/glyphs:\s*(.+)$/m);
-		if (familyMatch && fileMatch) fonts.push({
-			family: familyMatch[1].trim(),
-			file: fileMatch[1].trim()
-		});
-	}
-	return fonts;
-}
-/**
 * 列出支持的图像格式
 */
 async function listFormats() {
@@ -3332,14 +3308,6 @@ async function detectImageMagick() {
 	return detectEnvironment();
 }
 /**
-* 列出系统字体（向后兼容旧 API）
-*/
-async function listFonts(filter) {
-	const allFonts = await listFonts$1();
-	if (!filter) return allFonts;
-	return allFonts.filter((f) => f.family.toLowerCase().includes(filter.toLowerCase()));
-}
-/**
 * 获取环境信息（用于 info 命令）
 */
 async function getInfo() {
@@ -3348,7 +3316,6 @@ async function getInfo() {
 var magick = {
 	detect: detectImageMagick,
 	renderSvg,
-	listFonts,
 	listFormats,
 	getInfo
 };
