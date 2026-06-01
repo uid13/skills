@@ -9,35 +9,22 @@ description: "生成或编辑矢量/程序化图像（博客封面、Logo、图�
 
 ## 核心工具
 
-本技能提供 5 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
+本技能提供 3 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
 
 ### 1. `info.mjs` — 环境检查
 
 ```bash
-node <skill-dir>/scripts/dist/info.mjs [--json] [--quiet] [--preferred "Cascadia Code"]
+node <skill-dir>/scripts/dist/info.mjs [--json] [--quiet]
 ```
 
-**用途**：首次使用任务前**必做**，检查 ImageMagick 是否安装、字体是否齐全。
+**用途**：首次使用任务前**必做**，检查 ImageMagick 是否安装。
 
 **退出码**：
 - `0` 环境就绪
-- `1` 一般性问题（如中文字体缺失，仍可工作）
+- `1` 一般性问题
 - `3` **严重问题**：ImageMagick 未安装（必须解决）
 
-### 2. `check-fonts.mjs` — 字体检测与推荐
-
-```bash
-node <skill-dir>/scripts/dist/check-fonts.mjs [--filter "关键字"] [--recommend code|cjk|sans|serif] [--json]
-```
-
-**用途**：列出系统可用字体，按场景推荐（代码字体/中文字体/无衬线/衬线）。
-
-**典型用法**：
-- `--filter "Cascadia"` — 查看 Cascadia 系列是否安装
-- `--recommend code` — 查看当前代码字体可用情况
-- `--recommend cjk` — 查看中文字体可用性
-
-### 3. `render.mjs` — SVG → PNG 渲染（核心）
+### 2. `render.mjs` — SVG → PNG 渲染（核心）
 
 ```bash
 node <skill-dir>/scripts/dist/render.mjs <input.svg> [-o <output.png>] [--scale <2x|3x|...>] [--background <transparent|white|#...>] [--quality <1-100>] [--force] [--json]
@@ -56,19 +43,7 @@ node <skill-dir>/scripts/dist/render.mjs <input.svg> [-o <output.png>] [--scale 
 - `2` 参数错误（输入文件不存在、扩展名错误）
 - `3` ImageMagick 未安装
 
-### 4. `font-chain.mjs` — 字体链生成工具
-
-```bash
-node <skill-dir>/scripts/dist/font-chain.mjs [--json] [--dry-run] [--quiet]
-```
-
-**用途**：从 ImageMagick 获取系统真实可用字体，按类别和优先级分类，生成 `references/font-handling.jsonc`。
-
-**执行时机**：Agent 首次使用技能时**必须执行**，后续字体变化时可重新执行。
-
-**输出**：`references/font-handling.jsonc`（JSONC 格式，带注释，机器可读）
-
-### 5. `post-process.mjs` — 图像后期处理
+### 3. `post-process.mjs` — 图像后期处理
 
 ```bash
 node <skill-dir>/scripts/dist/post-process.mjs <input> [options] -o <output>
@@ -109,14 +84,6 @@ node <skill-dir>/scripts/dist/info.mjs
 ```
 
 - 如果 ImageMagick 未安装：告知用户安装（`winget install ImageMagick.ImageMagick` 或 `brew install imagemagick`）
-- 记录首选字体（`preferredFont.usedName`），后续 SVG 中使用
-
-```bash
-# 首次使用：生成字体链配置
-node <skill-dir>/scripts/dist/font-chain.mjs
-```
-
-- 生成 `references/font-handling.jsonc`，供 Phase 3 字体 fallback 使用
 
 ### Phase 2: 需求收集
 
@@ -163,7 +130,7 @@ Primary request: <用户的核心需求>
 Dimensions: <输出尺寸，用户未指定时根据用途推断>
 Style: <视觉风格>
 Text (verbatim): "<精确文字内容>"
-Typography: <字体链，参考 font-handling.jsonc>
+Typography: 固定使用 Cascadia Next SC NF
 Color palette: <配色方案>
 Composition/framing: <构图与布局>
 Constraints: <必须保留 / 必须避免>
@@ -191,15 +158,17 @@ Constraints: <必须保留 / 必须避免>
 **重要原则**：
 - 设计思路参考 `references/prompting.md`
 - 多样化设计示例参考 `references/sample-prompts.md`
-- 字体处理参考 `references/font-handling.jsonc`（Phase 1 已生成）
-- 必须使用 `font-family` 链式 fallback（不要单字体名）
+
+**内置字体**：
+本技能内置 Cascadia Next SC NF 字体（中英文 2:1 等宽），所有 SVG 统一使用该字体：
 
 ```xml
-<!-- 示例：字体链式 fallback -->
-<text font-family='"Cascadia Next SC NF", "Cascadia Code", "SimHei", sans-serif'>
-  中文 + English
-</text>
+<text font-family="Cascadia Next SC NF" font-size="32" font-weight="bold">中文 + English</text>
 ```
+
+- 字体文件位于 `fonts/` 目录，ImageMagick 渲染时自动使用，无需用户安装
+- 支持 7 个字重：`font-weight` 可选 `100`(ExtraLight) `200`(Light) `400`(Regular) `500`(Medium) `600`(SemiBold) `700`(Bold) `800`(ExtraBold)
+- **不要使用其他字体名**，不要写 fallback 链
 
 **写入 SVG 文件**（推荐命名 `design-v1.svg`），然后用 `render.mjs` 渲染。
 
@@ -254,21 +223,6 @@ SVG 中**不要**写背景层：
 </svg>
 ```
 
-## 字体 Fallback
-
-本技能内置字体 fallback 策略，保证用户**无需手动安装 Cascadia**也能渲染。
-
-**Fallback 顺序**（按优先级）：
-
-| 类型 | 候选字体 |
-|------|---------|
-| 代码/西文 | 见 `references/font-handling.jsonc` → code.chain |
-| 中文 | 见 `references/font-handling.jsonc` → cjk.chain |
-| 无衬线西文 | 见 `references/font-handling.jsonc` → sans.chain |
-| 衬线西文 | 见 `references/font-handling.jsonc` → serif.chain |
-
-**数据来源**：`references/font-handling.jsonc` 由 `font-chain.mjs` 从 `magick identify -list font` 动态生成，反映当前系统真实可用字体。
-
 ## 参考文档（按需加载）
 
 以下文档按需阅读，不必一次性全部加载：
@@ -276,4 +230,3 @@ SVG 中**不要**写背景层：
 - [`references/prompting.md`](./references/prompting.md) — SVG 设计思路引导
 - [`references/sample-prompts.md`](./references/sample-prompts.md) — 多样化设计示例
 - [`references/assets.md`](./references/assets.md) — 外部素材获取（Iconify 公共 API 图标）
-- [`references/font-handling.jsonc`](./references/font-handling.jsonc) — 字体链配置（由 `font-chain.mjs` 生成）

@@ -13,16 +13,19 @@
   - Windows: `winget install ImageMagick.ImageMagick`
   - macOS: `brew install imagemagick`
 
+## 内置字体
+
+技能内置 **Cascadia Next SC NF**（中英文 2:1 等宽字体），7 个字重，无需用户安装。
+SVG 中统一使用 `font-family="Cascadia Next SC NF"`。
+
 ## 工具一览
 
-本技能提供 5 个 CLI 工具（位于 `scripts/dist/`）：
+本技能提供 3 个 CLI 工具（位于 `scripts/dist/`）：
 
 | 工具 | 用途 |
 |------|------|
-| `info.mjs` | 环境检查（ImageMagick 是否安装、字体是否齐全） |
-| `check-fonts.mjs` | 字体检测与推荐 |
+| `info.mjs` | 环境检查（ImageMagick 是否安装） |
 | `render.mjs` | SVG → PNG 渲染（核心） |
-| `font-chain.mjs` | 生成字体链配置（font-handling.jsonc） |
 | `post-process.mjs` | 图像后期处理（调色、模糊、格式转换等） |
 
 ## 快速开始
@@ -31,10 +34,7 @@
 # 1. 检查环境
 node scripts/dist/info.mjs
 
-# 2. 生成字体链配置（首次使用必做）
-node scripts/dist/font-chain.mjs
-
-# 3. 编写 SVG 并渲染
+# 2. 编写 SVG 并渲染
 node scripts/dist/render.mjs design.svg -o output.png --scale 2x
 ```
 
@@ -57,7 +57,6 @@ node scripts/dist/render.mjs design.svg -o output.png --scale 2x
 - [`references/prompting.md`](./references/prompting.md) — SVG 设计思路引导
 - [`references/sample-prompts.md`](./references/sample-prompts.md) — 多样化设计示例
 - [`references/assets.md`](./references/assets.md) — 外部素材获取（Iconify 图标 API）
-- [`references/font-handling.jsonc`](./references/font-handling.jsonc) — 字体链配置（由 `font-chain.mjs` 生成）
 
 ## 技术栈（开发者）
 

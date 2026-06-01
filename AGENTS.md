@@ -22,9 +22,10 @@
 skills-uid13/
 ├── src/                           # 源码目录（TypeScript 开发时）
 │   ├── imagegen-magick/           # 图像生成技能（当前实现）
-│   │   ├── src/bin/               # CLI 入口（info/render/check-fonts/font-chain/post-process）
-│   │   ├── src/lib/               # 工具库（font/magick/colors/spawn）
+│   │   ├── src/bin/               # CLI 入口（info/render/post-process）
+│   │   ├── src/lib/               # 工具库（magick/colors/spawn）
 │   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
+│   │   ├── fonts/                 # 内置字体文件（Cascadia Next SC NF）
 │   │   ├── build.mjs              # 程序化多入口构建脚本
 │   │   ├── tsconfig.json          # 模块级 TS 配置
 │   │   └── package.json           # 模块级依赖与构建脚本
@@ -104,9 +105,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 每个工具只负责一件事：
 - `info.mjs`：环境信息检查
-- `check-fonts.mjs`：字体列表与推荐
 - `render.mjs`：SVG → PNG 渲染
-- `font-chain.mjs`：生成字体链配置（font-handling.jsonc）
 - `post-process.mjs`：图像后期处理（调色、模糊、格式转换等）
 - `music.mjs`：音乐播放控制（单入口，内部通过 commander 分发子命令）
 

@@ -1,9 +1,8 @@
 import { createRequire } from "node:module";
 import { spawn } from "node:child_process";
-import { dirname, extname, join, resolve } from "node:path";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { homedir, platform } from "node:os";
-import { fileURLToPath } from "node:url";
+import { extname, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { platform } from "node:os";
 //#region \0rolldown/runtime.js
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -3354,372 +3353,6 @@ var magick = {
 	getInfo
 };
 //#endregion
-//#region src/lib/font-detector.ts
-/**
-* 跨平台字体检测器
-*
-* 检测系统中可用的字体，支持三种检测后端（按优先级）：
-* 1. ImageMagick `identify -list font`（最通用，跨平台一致）
-* 2. fc-list（类 Unix 系统专用，ImageMagick 不可用时的回退）
-* 3. 直接扫描文件系统（ImageMagick 和 fc-list 都没有时的最后手段）
-*
-* 输出统一的 FontInfo 数组，供 font-fallback.ts 决策。
-*/
-/**
-* 检测系统所有可用字体
-*
-* 按优先级尝试三种后端：
-* 1. ImageMagick（如果可用）
-* 2. fc-list（类 Unix 系统）
-* 3. 文件系统扫描（兜底，Windows 优先尝试）
-*
-* @returns 字体信息数组（可能为空，表示检测失败）
-* @throws 不抛错；失败时返回空数组并通过 console.warn 提示原因
-*
-* @example
-*   const fonts = await detectSystemFonts()
-*   console.log(`检测到 ${fonts.length} 个字体`)
-*/
-async function detectSystemFonts() {
-	if ((await magick.detect()).installed) {
-		const imFonts = await detectViaImageMagick();
-		if (imFonts.length > 0) return imFonts;
-	}
-	if (platform() !== "win32") {
-		const fcFonts = await detectViaFcList();
-		if (fcFonts.length > 0) return fcFonts;
-	}
-	return detectViaFilesystem();
-}
-/**
-* 通过 ImageMagick 检测字体
-*
-* 命令：`magick identify -list font`
-* 优点：跨平台行为一致，且 ImageMagick 自身就能用这些字体
-*/
-async function detectViaImageMagick() {
-	return (await magick.listFonts()).map((f) => ({
-		family: f.family,
-		file: f.file,
-		source: platform() === "win32" ? "windows" : platform() === "darwin" ? "macos" : "linux"
-	}));
-}
-/**
-* 通过 fc-list 检测字体（仅 macOS / Linux）
-*
-* 命令：`fc-list : family style file`
-* 输出示例：
-*   Arial:style=Regular:file=/usr/share/fonts/truetype/msttcorefonts/Arial.ttf
-*
-* 注意：fc-list 在某些环境下可能不存在（如 Docker 镜像），失败时返回空数组
-*/
-async function detectViaFcList() {
-	const result = await spawnExec("fc-list", {
-		args: [
-			":",
-			"family",
-			"style",
-			"file"
-		],
-		timeoutMs: 1e4
-	});
-	if (!result.success) return [];
-	const fonts = [];
-	const source = platform() === "darwin" ? "macos" : "linux";
-	for (const line of result.stdout.split("\n")) {
-		const match = line.match(/^(.+?):(.+?):file=(.+)$/);
-		if (match) fonts.push({
-			family: match[1].trim(),
-			style: match[2].trim(),
-			file: match[3].trim(),
-			source
-		});
-	}
-	return fonts;
-}
-/**
-* 通过扫描文件系统检测字体
-*
-* Windows 平台扫描：
-* - C:\Windows\Fonts （系统字体目录）
-* - %LOCALAPPDATA%\Microsoft\Windows\Fonts （用户安装字体）
-*
-* 其他平台：
-* - /usr/share/fonts （Linux 系统字体）
-* - /usr/local/share/fonts （Linux 用户字体）
-* - ~/Library/Fonts （macOS 用户字体）
-* - /Library/Fonts （macOS 系统字体）
-*
-* 此方式是兜底方案，不如 IM 和 fc-list 准确：
-* - 不支持读取字体的 family name（只能从文件名推断）
-* - 可能把同一字体的多个 style 算成多个独立字体
-*/
-function detectViaFilesystem() {
-	const dirs = getFontDirectories();
-	const fonts = [];
-	const source = platform() === "win32" ? "windows" : platform() === "darwin" ? "macos" : "linux";
-	for (const dir of dirs) {
-		if (!existsSync(dir)) continue;
-		try {
-			const files = listFontFiles(dir);
-			for (const file of files) fonts.push({
-				family: inferFamilyFromFilename(file),
-				file,
-				source
-			});
-		} catch {
-			continue;
-		}
-	}
-	return Promise.resolve(fonts);
-}
-/**
-* 获取当前平台的字体目录列表
-*/
-function getFontDirectories() {
-	const home = homedir();
-	if (platform() === "win32") return [resolve("C:\\Windows\\Fonts"), join(home, "AppData", "Local", "Microsoft", "Windows", "Fonts")];
-	if (platform() === "darwin") return [
-		"/Library/Fonts",
-		join(home, "Library", "Fonts"),
-		"/System/Library/Fonts"
-	];
-	return [
-		"/usr/share/fonts",
-		"/usr/local/share/fonts",
-		join(home, ".fonts"),
-		join(home, ".local", "share", "fonts")
-	];
-}
-var FONT_EXTENSIONS = new Set([
-	".ttf",
-	".otf",
-	".ttc",
-	".otc",
-	".woff",
-	".woff2",
-	".pfb"
-]);
-/**
-* 递归列出目录下所有字体文件
-*/
-function listFontFiles(dir, depth = 0) {
-	if (depth > 3) return [];
-	const results = [];
-	try {
-		const entries = readdirSync(dir, { withFileTypes: true });
-		for (const entry of entries) {
-			const full = join(dir, entry.name);
-			if (entry.isDirectory()) results.push(...listFontFiles(full, depth + 1));
-			else if (entry.isFile()) {
-				const ext = entry.name.substring(entry.name.lastIndexOf(".")).toLowerCase();
-				if (FONT_EXTENSIONS.has(ext)) results.push(full);
-			}
-		}
-	} catch {}
-	return results;
-}
-/**
-* 从文件名推断字体族名
-*
-* 策略：
-* 1. 移除扩展名
-* 2. 转换分隔符（- _）为空格
-* 3. 移除常见的 style 后缀（Regular/Bold/Italic/...）
-* 4. 首字母大写
-*
-* 示例：
-* - 'Arial.ttf'             → 'Arial'
-* - 'arial-bold-italic.otf' → 'Arial'
-* - 'msyh.ttc'              → 'Msyh'（注：中文名无法推断，依赖 IM/fc-list）
-*/
-function inferFamilyFromFilename(filePath) {
-	const fileName = filePath.substring(filePath.lastIndexOf("/") + 1).replace(/\\/g, "/");
-	const baseName = fileName.substring(0, fileName.lastIndexOf(".")) || fileName;
-	const STYLE_PATTERNS = [/[-_](regular|bold|italic|light|medium|semibold|thin|black|heavy|extralight|condensed|book)(-\w+)?$/i, /[-_](normal|bolditalic|bolditalic|demibold|extrabold|hairline)(-\w+)?$/i];
-	let name = baseName;
-	for (const pattern of STYLE_PATTERNS) name = name.replace(pattern, "");
-	return name.split(/[-_]/).filter((s) => s.length > 0).map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
-}
-//#endregion
-//#region src/lib/font-fallback.ts
-/**
-* 字体 Fallback 策略模块
-*
-* 核心功能：
-* - 优先从 references/font-handling.jsonc 读取由 font-chain.mjs 生成的字体链
-* - JSONC 不存在时，使用内置硬编码默认候选列表（兜底）
-* - 支持自定义候选策略
-*
-* 设计目标：
-* - JSONC 中的字体名来自 magick identify -list font，是当前系统真实可用的
-* - 硬编码列表作为 fallback，保证首次使用也能工作
-* - 用户可通过编辑 JSONC 自定义字体优先级
-*/
-/**
-* 解析 JSONC（去除注释后 JSON.parse）
-*
-* 支持 // 单行注释和 /* ... * / 多行注释，正确处理字符串内的 //
-*/
-function parseJsonc(text) {
-	let result = "";
-	let i = 0;
-	while (i < text.length) {
-		if (text[i] === "\"") {
-			result += text[i++];
-			while (i < text.length && text[i] !== "\"") {
-				if (text[i] === "\\") result += text[i++];
-				result += text[i++];
-			}
-			if (i < text.length) result += text[i++];
-			continue;
-		}
-		if (text[i] === "/" && text[i + 1] === "*") {
-			i += 2;
-			while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) i++;
-			i += 2;
-			continue;
-		}
-		if (text[i] === "/" && text[i + 1] === "/") {
-			while (i < text.length && text[i] !== "\n") i++;
-			continue;
-		}
-		result += text[i++];
-	}
-	return JSON.parse(result);
-}
-/**
-* 尝试加载 font-handling.jsonc
-*
-* 查找路径：相对于当前脚本位置向上两级，进入 references/font-handling.jsonc
-* 即：scripts/dist/*.mjs → ../../references/font-handling.jsonc
-*
-* @returns 解析后的配置，或 null（文件不存在或解析失败）
-*/
-function loadFontChainConfig() {
-	try {
-		const jsoncPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../references/font-handling.jsonc");
-		if (!readFileSync) return null;
-		return parseJsonc(readFileSync(jsoncPath, "utf-8"));
-	} catch {
-		return null;
-	}
-}
-/**
-* 适合代码 / CLI / 博客封面的西文字体候选（等宽字体优先）
-*/
-var DEFAULT_CODE_FONT_CANDIDATES = [
-	"Cascadia Code",
-	"Cascadia Mono",
-	"Cascadia Next SC NF",
-	"Cascadia Next",
-	"Fira Code",
-	"Fira Mono",
-	"JetBrains Mono",
-	"JetBrains Mono NL",
-	"Hack",
-	"Source Code Pro",
-	"IBM Plex Mono",
-	"Consolas",
-	"DejaVu Sans Mono",
-	"Courier New"
-];
-/**
-* 中文字体候选（按平台分组）
-*/
-var DEFAULT_CJK_FONT_CANDIDATES = [
-	"Microsoft YaHei",
-	"Microsoft YaHei UI",
-	"DengXian",
-	"SimHei",
-	"SimSun",
-	"PingFang SC",
-	"STHeiti",
-	"Hiragino Sans GB",
-	"Noto Sans CJK SC",
-	"Noto Sans CJK",
-	"WenQuanYi Micro Hei",
-	"WenQuanYi Zen Hei",
-	"Source Han Sans CN",
-	"Source Han Sans SC",
-	"Adobe Song Std"
-];
-/**
-* 获取字体候选列表
-*
-* 优先从 font-handling.jsonc 读取（由 font-chain.mjs 生成）
-* JSONC 不存在或解析失败时，使用硬编码默认值
-*/
-function getCodeCandidates() {
-	const config = loadFontChainConfig();
-	if (config?.code?.chain?.length) return config.code.chain;
-	return DEFAULT_CODE_FONT_CANDIDATES;
-}
-function getCjkCandidates() {
-	const config = loadFontChainConfig();
-	if (config?.cjk?.chain?.length) return config.cjk.chain;
-	return DEFAULT_CJK_FONT_CANDIDATES;
-}
-/**
-* 在字体列表中查找某个字体族名（不区分大小写，支持别名）
-*/
-function findFont(fonts, targetFamily) {
-	const normalized = targetFamily.toLowerCase().replace(/\s+/g, " ").trim();
-	for (const font of fonts) {
-		const fontFam = font.family.toLowerCase().replace(/\s+/g, " ").trim();
-		if (fontFam === normalized || fontFam.startsWith(normalized + " ")) return font;
-	}
-	return null;
-}
-/**
-* 按候选列表查找字体（含 fallback）
-*/
-function resolveFont(fonts, requested, strategy = {
-	candidates: getCodeCandidates(),
-	allowCJK: true,
-	verbose: true
-}) {
-	if (requested) {
-		const exact = findFont(fonts, requested);
-		if (exact) return {
-			matched: true,
-			usedName: exact.family,
-			source: "exact",
-			requestedName: requested,
-			file: exact.file
-		};
-	}
-	for (const cand of strategy.candidates) {
-		const font = findFont(fonts, cand);
-		if (font) return {
-			matched: true,
-			usedName: font.family,
-			source: requested ? "fallback" : "exact",
-			requestedName: requested ?? cand,
-			file: font.file,
-			warning: requested && strategy.verbose ? `用户请求的字体 "${requested}" 不可用，已降级到 "${font.family}"` : void 0
-		};
-	}
-	if (strategy.allowCJK) for (const cjk of getCjkCandidates()) {
-		const font = findFont(fonts, cjk);
-		if (font) return {
-			matched: true,
-			usedName: font.family,
-			source: "fallback",
-			requestedName: requested ?? strategy.candidates[0] ?? "",
-			file: font.file,
-			warning: `所有候选字体均不可用，已降级到中文字体 "${font.family}"`
-		};
-	}
-	return {
-		matched: false,
-		usedName: "system-ui",
-		source: "missing",
-		requestedName: requested ?? strategy.candidates[0] ?? "",
-		warning: "系统中未检测到任何合适字体，将使用浏览器默认字体"
-	};
-}
-//#endregion
 //#region src/lib/colors.ts
 /**
 * 终端颜色输出工具（替代 chalk 依赖，减小打包体积）
@@ -3944,21 +3577,20 @@ createLogger();
 * 用途：
 * - 检查 Node.js 版本
 * - 检查 ImageMagick 是否安装
-* - 检查系统中可用的字体
-* - 检查推荐字体（Cascadia Code）是否可用
-* - 输出汇总报告（人类可读或 JSON format）
+* - 报告内置字体信息
 *
 * 调用示例：
-*   node info.mjs                       # 人类可读输出
-*   node info.mjs --json                # JSON 输出（供 AI 解析）
-*   node info.mjs --preferred "Cascadia Code" # 检查特定字体
+*   node info.mjs           # 人类可读输出
+*   node info.mjs --json    # JSON 输出（供 AI 解析）
 *
 * 退出码规范：
-* - 0: 所有核心依赖就绪（IM + 至少一个字体）
-* - 1: ImageMagick 缺失（无法渲染 SVG）
-* - 3: 依赖缺失（详见输出）
+* - 0: 所有核心依赖就绪
+* - 1: 一般性问题
+* - 3: ImageMagick 缺失（严重问题）
 */
-var opts = new Command().name("info").description("检查 imagegen-magick 技能的运行环境").option("--json", "以 JSON 格式输出，便于 AI 解析", false).option("--quiet", "完全静默，只输出结构化结果", false).option("--preferred <name>", "首选字体名（默认 \"Cascadia Code\"）", "Cascadia Code").option("--debug", "显示调试信息", false).parse().opts();
+/** 内置字体名称 */
+var BUNDLED_FONT = "Cascadia Next SC NF";
+var opts = new Command().name("info").description("检查 imagegen-magick 技能的运行环境").option("--json", "以 JSON 格式输出，便于 AI 解析", false).option("--quiet", "完全静默，只输出结构化结果", false).option("--debug", "显示调试信息", false).parse().opts();
 var log = createLogger({
 	json: opts.json,
 	quiet: opts.quiet,
@@ -3973,50 +3605,19 @@ async function main() {
 	log.debug("Node 版本检测完成", { node: nodeVersion });
 	log.info("检测 ImageMagick...");
 	const imInfo = await magick.detect();
-	if (imInfo.installed) log.success(`ImageMagick 已安装`, {
+	if (imInfo.installed) log.success("ImageMagick 已安装", {
 		version: imInfo.version,
 		executable: imInfo.executable,
 		formatCount: imInfo.formats?.length ?? 0
 	});
 	else log.error("ImageMagick 未检测到", { reason: imInfo.error });
-	log.info("扫描系统字体...");
-	const allFonts = await detectSystemFonts();
-	log.debug("字体扫描完成", { count: allFonts.length });
-	log.info(`检查首选字体 "${opts.preferred}"...`);
-	const preferredMatch = resolveFont(allFonts, opts.preferred, {
-		candidates: DEFAULT_CODE_FONT_CANDIDATES,
-		allowCJK: true,
-		verbose: true
-	});
-	if (preferredMatch.source === "exact") log.success("首选字体可用", { usedName: preferredMatch.usedName });
-	else if (preferredMatch.source === "fallback") log.warn(preferredMatch.warning ?? "已降级到其他字体", {
-		requested: preferredMatch.requestedName,
-		used: preferredMatch.usedName
-	});
-	else log.error("未找到合适字体", { reason: preferredMatch.warning });
-	const availableCJKFonts = allFonts.filter((f) => [
-		"Microsoft YaHei",
-		"DengXian",
-		"SimHei",
-		"SimSun",
-		"PingFang",
-		"Hiragino",
-		"Noto Sans CJK",
-		"WenQuanYi",
-		"Source Han"
-	].some((prefix) => f.family.toLowerCase().includes(prefix.toLowerCase()))).map((f) => f.family).slice(0, 10);
 	const issues = [];
 	if (!imInfo.installed) issues.push("ImageMagick 未安装 - 无法渲染 SVG 为 PNG");
-	if (allFonts.length === 0) issues.push("未检测到任何系统字体 - SVG 文字可能渲染为默认字体");
-	if (availableCJKFonts.length === 0) issues.push("未检测到中文字体 - 中文内容可能显示为方块");
-	if (preferredMatch.source === "missing") issues.push(`首选字体 "${opts.preferred}" 及其所有候选都不可用`);
 	const envInfo = {
 		node: nodeVersion,
 		platform: `${process.platform} ${process.arch}`,
 		imagemagick: imInfo,
-		preferredFont: preferredMatch,
-		totalFonts: allFonts.length,
-		availableCJKFonts,
+		bundledFont: BUNDLED_FONT,
 		issues
 	};
 	if (opts.json) process.stdout.write(JSON.stringify(envInfo, null, 2) + "\n");
@@ -4038,23 +3639,9 @@ async function main() {
 			process.stdout.write(`   原因: ${colors.yellow(imInfo.error ?? "未知")}\n`);
 		}
 		process.stdout.write("\n");
-		process.stdout.write(colors.bold("🔤 系统字体:\n"));
-		process.stdout.write(`   总数: ${colors.blue(String(allFonts.length))} 个\n`);
-		process.stdout.write(`   中文字体: ${availableCJKFonts.length} 个\n`);
-		if (availableCJKFonts.length > 0) process.stdout.write(`   (示例: ${availableCJKFonts.slice(0, 3).join(", ")}${availableCJKFonts.length > 3 ? "..." : ""})\n`);
-		process.stdout.write("\n");
-		process.stdout.write(colors.bold(`🔍 首选字体 ("${opts.preferred}"):\n`));
-		if (preferredMatch.source === "exact") {
-			process.stdout.write(`   状态: ${colors.green("✓ 精确匹配")}\n`);
-			process.stdout.write(`   字体: ${colors.green(preferredMatch.usedName)}\n`);
-		} else if (preferredMatch.source === "fallback") {
-			process.stdout.write(`   状态: ${colors.yellow("⚠ 降级")}\n`);
-			process.stdout.write(`   请求: ${opts.preferred}\n`);
-			process.stdout.write(`   实际: ${colors.yellow(preferredMatch.usedName)}\n`);
-		} else {
-			process.stdout.write(`   状态: ${colors.red("✗ 未匹配")}\n`);
-			if (preferredMatch.warning) process.stdout.write(`   原因: ${colors.red(preferredMatch.warning)}\n`);
-		}
+		process.stdout.write(colors.bold("🔤 内置字体:\n"));
+		process.stdout.write(`   ${colors.green(BUNDLED_FONT)}\n`);
+		process.stdout.write(`   字重: Regular, Bold, Light, Medium, SemiBold, ExtraLight, ExtraBold\n`);
 		process.stdout.write("\n");
 		if (issues.length > 0) {
 			process.stdout.write(colors.bold("⚠️  发现问题:\n"));
@@ -4063,7 +3650,7 @@ async function main() {
 		} else process.stdout.write(colors.bold(colors.green("✓ 环境就绪，可以正常使用 imagegen-magick\n")));
 	}
 	if (!imInfo.installed) process.exit(3);
-	if (issues.filter((i) => !i.includes("中文字体")).length > 0) process.exit(1);
+	if (issues.length > 0) process.exit(1);
 	process.exit(0);
 }
 main().catch((err) => {

@@ -38,7 +38,7 @@ Do not add:
 - Put literal text in quotes or ALL CAPS and specify typography (font style, size, color, placement).
 - Spell uncommon words letter-by-letter if accuracy matters.
 - For in-image copy, require verbatim rendering and no extra characters.
-- Use `references/font-handling.jsonc` for font chain (run `font-chain.mjs` first to generate).
+- Use `font-family="Cascadia Next SC NF"` for all text (built-in font, supports Chinese + English).
 
 ## Input images and references
 - Do not assume that every provided image is an edit target.
@@ -53,7 +53,7 @@ Do not add:
 - Prefer one targeted follow-up at a time over rewriting the whole prompt.
 
 ## SVG-specific guidance
-- Use `font-family` chain for all text (never single font name).
+- Use `font-family="Cascadia Next SC NF"` for all text elements.
 - Decorative elements should use low opacity (0.3-0.6) to not overpower text.
 - For icons, use Iconify public API (`references/assets.md`).
 - Post-processing available via `post-process.mjs` for brightness, blur, vignette, format conversion.

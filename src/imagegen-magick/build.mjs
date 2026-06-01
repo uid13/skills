@@ -3,7 +3,7 @@
  * Vite 8 + Rolldown 多入口构建脚本
  *
  * 策略：逐个构建，避免 Rolldown 提取共享模块为独立 chunk。
- * 每个 CLI 工具（info/render/check-fonts/font-chain/post-process）输出为独立 .mjs，
+ * 每个 CLI 工具（info/render/post-process）输出为独立 .mjs，
  * 零外部依赖，可直接运行（符合"零安装分发"需求）。
  *
  * 输出：skills/imagegen-magick/scripts/dist/*.mjs
@@ -18,7 +18,7 @@ import { platform } from 'node:os'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const OUT_DIR = resolve(__dirname, '../../skills/imagegen-magick/scripts/dist')
 
-const ENTRIES = ['info', 'render', 'check-fonts', 'font-chain', 'post-process']
+const ENTRIES = ['info', 'render', 'post-process']
 
 async function buildEntry(name, isFirst) {
   console.log(`\n▶ 构建: ${name}.mjs`)
@@ -118,6 +118,23 @@ async function main() {
     console.log(`📚 references/ (${readdirSync(refsDest).length} 文件) → skills/imagegen-magick/`)
   }
 
+  // 拷贝 README.md
+  const readmeSrc = resolve(__dirname, 'README.md')
+  const readmeDest = resolve(__dirname, '../../skills/imagegen-magick/README.md')
+  if (existsSync(readmeSrc)) {
+    copyFileSync(readmeSrc, readmeDest)
+    console.log('📖 README.md → skills/imagegen-magick/')
+  }
+
+  // 拷贝内置字体文件（Cascadia Next SC NF）
+  const fontsSrc = resolve(__dirname, 'fonts')
+  const fontsDest = resolve(__dirname, '../../skills/imagegen-magick/fonts')
+  if (existsSync(fontsSrc)) {
+    rmSync(fontsDest, { recursive: true, force: true })
+    cpSync(fontsSrc, fontsDest, { recursive: true })
+    console.log(`🔤 fonts/ (${readdirSync(fontsDest).length} 文件) → skills/imagegen-magick/`)
+  }
+
   const elapsed = Date.now() - startTime
   console.log(`\n✅ 构建完成 (${elapsed}ms)`)
   console.log('📦 产物:', results.map(r => `${r.name}.mjs`).join(', '))
@@ -127,10 +144,3 @@ main().catch(err => {
   console.error('构建失败:', err)
   process.exit(1)
 })
-  // 拷贝 README.md
-  const readmeSrc = resolve(__dirname, 'README.md')
-  const readmeDest = resolve(__dirname, '../../skills/imagegen-magick/README.md')
-  if (existsSync(readmeSrc)) {
-    copyFileSync(readmeSrc, readmeDest)
-    console.log('📖 README.md → skills/imagegen-magick/')
-  }
