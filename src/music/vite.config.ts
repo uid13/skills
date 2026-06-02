@@ -4,7 +4,7 @@ import { copyFileSync, existsSync } from 'node:fs';
 
 /**
  * Vite 8 + Rolldown 构建配置（music 技能）
- * 
+ *
  * - ssr: true（externalize node: 内置模块）
  * - ssr.noExternal: commander 内联打包
  * - 输出到 skills/music/scripts/dist/
@@ -30,7 +30,7 @@ export default defineConfig({
     },
   },
   ssr: {
-    noExternal: ['commander'],
+    noExternal: true,  // 打包所有依赖（包括 cross-spawn 的子依赖 which 等）
   },
   plugins: [
     {

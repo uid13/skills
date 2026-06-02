@@ -35,7 +35,7 @@ skills-uid13/
 │   │   └── package.json           # 模块级配置
 │   └── music/                     # 音乐播放技能（代码型，TypeScript）
 │       ├── src/bin/               # CLI 入口（music）
-│       ├── src/lib/               # 工具库（ytdl/scoring/mpv/output）
+│       ├── src/lib/               # 工具库（mpv IPC 控制）
 │       ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
 │       ├── tsconfig.json          # 模块级 TS 配置
 │       └── package.json           # 模块级依赖与构建脚本
@@ -96,7 +96,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 ### 3. 跨平台兼容
 
 - 所有脚本必须同时工作于 Windows / macOS / Linux
-- 使用项目内的跨平台 spawn 封装（music: `lib/utils.ts`），不要直接 `child_process.spawn`
+- 使用 cross-spawn 进行跨平台进程调用，不要直接 `child_process.spawn`
 - 文件路径统一使用 `node:path` 的 posix 或自动识别
 - Windows 上使用 Git Bash（不支持 PowerShell）
 
@@ -109,7 +109,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 ### 5. 单一职责
 
 每个工具只负责一件事：
-- `music.mjs`：音乐播放控制（单入口，内部通过 commander 分发子命令）
+- `music.mjs`：mpv 播放控制（IPC 透传，模型直接调用 yt-dlp 和 mpv CLI）
 
 对于资源型技能（如 imagegen-magick），AI Agent 直接调用外部工具（如 `magick` CLI），无需自定义脚本。
 
@@ -126,9 +126,8 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 ### 7. 输出格式
 
-- 默认输出人类可读的彩色文本（通过 lib/colors.ts）
-- 加 `--json` 参数可切换为 JSON 输出（供 AI 解析）
-- 加 `--quiet` 可禁用所有彩色输出（CI 环境自动禁用）
+- music.mjs 默认输出 JSON 格式（便于 AI 解析）
+- 所有控制命令返回统一结构：`{ status, action, ... }`
 
 ## 开发流程
 

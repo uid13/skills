@@ -15,7 +15,7 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 | 技能 | 类型 | 说明 | 状态 |
 |------|------|------|------|
 | **imagegen-magick** | 资源型 | 程序化图像生成（文档 + 内置字体 + Iconify 图标） | 纯资源，Vite public 构建 |
-| **music** | 代码型 | 在线音乐播放（基于 mpv + yt-dlp） | 已实现 |
+| **music** | 代码型 | 在线音乐播放（模型调用 yt-dlp/mpv，music.mjs 仅 IPC 控制） | 已简化 |
 
 ## 安装
 
@@ -42,8 +42,8 @@ skills-uid13/
 │   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
 │   │   └── package.json
 │   └── music/                     # 音乐播放技能（代码型，TypeScript）
-│       ├── src/bin/
-│       ├── src/lib/
+│       ├── src/bin/               # CLI 入口（music.ts - IPC 控制）
+│       ├── src/lib/               # 工具库（mpv.ts - IPC 通信）
 │       └── vite.config.ts
 │
 ├── skills/                        # 构建产物（Agent Skills 规范结构）
