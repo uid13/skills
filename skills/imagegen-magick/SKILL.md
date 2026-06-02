@@ -7,83 +7,24 @@ description: "生成或编辑矢量/程序化图像（博客封面、Logo、图�
 
 使用 **SVG + ImageMagick** 工作流，程序化生成高质量的矢量风格图像。
 
-## 核心工具
+## 内置字体
 
-本技能提供 3 个命令行工具（位于 `scripts/dist/`），Agent 在任务中按需调用：
+本技能内置 **Cascadia Next SC NF** 字体（中英文 2:1 等宽），7 个字重，无需用户安装。
+字体文件位于 `fonts/` 目录，ImageMagick 渲染时自动使用。
 
-### 1. `info.mjs` — 环境检查
-
-```bash
-node <skill-dir>/scripts/dist/info.mjs [--json] [--quiet]
-```
-
-**用途**：首次使用任务前**必做**，检查 ImageMagick 是否安装。
-
-**退出码**：
-- `0` 环境就绪
-- `1` 一般性问题
-- `3` **严重问题**：ImageMagick 未安装（必须解决）
-
-### 2. `render.mjs` — SVG → PNG 渲染（核心）
-
-```bash
-node <skill-dir>/scripts/dist/render.mjs <input.svg> [-o <output.png>] [--scale <2x|3x|...>] [--background <transparent|white|#...>] [--quality <1-100>] [--force] [--json]
-```
-
-**用途**：将写好的 SVG 代码渲染为实际图片。
-
-**关键参数**：
-- `--scale 2x` — 输出分辨率放大 2 倍（默认值，适合高清）
-- `--background transparent` — 默认透明背景
-- `--force` — 强制覆盖已有文件（不传会自动生成 `xxx-1.png` 避免覆盖）
-
-**退出码**：
-- `0` 成功
-- `1` ImageMagick 渲染失败
-- `2` 参数错误（输入文件不存在、扩展名错误）
-- `3` ImageMagick 未安装
-
-### 3. `post-process.mjs` — 图像后期处理
-
-```bash
-node <skill-dir>/scripts/dist/post-process.mjs <input> [options] -o <output>
-```
-
-**用途**：对已有图片进行后期调整，无需重新渲染 SVG。
-
-**Agent 使用方式**：根据 Phase 4 自检结果，自行判断需要的参数。模型具备 ImageMagick 参数知识，无需映射表。
-
-**支持的操作维度**：
-- 几何变换：`--resize`、`--crop`、`--rotate`、`--flip`、`--flop`
-- 颜色色调：`--brightness`、`--contrast`、`--saturation`、`--sepia`、`--grayscale`、`--auto-level`
-- 滤镜模糊：`--blur`、`--sharpen`、`--unsharp`
-- 艺术效果：`--vignette`、`--charcoal`、`--sketch`、`--pixelate`
-- 格式输出：`--jpeg <quality>`、`--webp <quality>`、`--png`、`--strip`
-- 预设效果：`--preset <name>`（如 blog-cover、vintage、dramatic）
-
-**工作流集成**：Phase 4 自检发现问题 → 判断属于后期处理范畴 → 调用 post-process.mjs → 重新自检。
-
-## When to use
-- 生成新的 SVG 设计图（博客封面、社交媒体图片、Logo、徽章、UI 组件、信息图、演示文稿封面）
-- 需要精确排版、字体控制、尺寸约束的设计类图像
-- 编辑已有 SVG 设计（更新文字、布局、颜色、组件）
-- 为同一任务生成多个设计变体
-
-## When not to use
-- 照片级写实、复杂纹理、人物肖像等需要生成模型的场景 → 改用 imagegen 类技能
-- 扩展或匹配仓库内已有的 SVG/矢量图标集或插画库 → 直接编辑已有文件
-- 简单形状、图表、图标，直接用 HTML/CSS/canvas 更合适 → 不需要 ImageMagick 渲染管线
-- 用户明确需要 AI 生成的位图而非代码原生的 SVG → 改用 imagegen 类技能
+SVG 中统一使用 `font-family="Cascadia Next SC NF"`。
 
 ## 标准工作流（5 个 Phase）
 
 ### Phase 1: 环境确认（首次使用必做）
 
+**检查 ImageMagick 是否安装**：
 ```bash
-node <skill-dir>/scripts/dist/info.mjs
+magick -version
 ```
 
-- 如果 ImageMagick 未安装：告知用户安装（`winget install ImageMagick.ImageMagick` 或 `brew install imagemagick`）
+- 如果未安装：告知用户安装（`winget install ImageMagick.ImageMagick` 或 `brew install imagemagick`）
+- 如果已安装：记录版本号，继续下一步
 
 ### Phase 2: 需求收集
 
@@ -170,21 +111,45 @@ Constraints: <必须保留 / 必须避免>
 - 支持 7 个字重：`font-weight` 可选 `100`(ExtraLight) `200`(Light) `400`(Regular) `500`(Medium) `600`(SemiBold) `700`(Bold) `800`(ExtraBold)
 - **不要使用其他字体名**，不要写 fallback 链
 
-**写入 SVG 文件**（推荐命名 `design-v1.svg`），然后用 `render.mjs` 渲染。
+**写入 SVG 文件**（推荐命名 `design-v1.svg`），然后用 `magick` 命令渲染。
 
 ### Phase 4: 渲染与验证闭环
 
+**渲染**：
 ```bash
-# 渲染
-node <skill-dir>/scripts/dist/render.mjs design-v1.svg -o design-v1.png
+magick design-v1.svg -density 192 -background none -flatten design-v1.png
 ```
 
+**验证**：
 Inspect outputs and validate: 文字渲染（乱码/豆腐块/空白字）、主体与构图、元素对齐与间距、**元素重叠**（文本/图标/装饰元素之间是否互相覆盖）、背景与文字对比、边界溢出、用户指定的约束（尺寸/风格/避免项）。
 
-发现问题时的处理：
+**后期处理**（如需调整）：
+直接使用 `magick` CLI 构造参数：
+
+```bash
+# 模糊
+magick design.png -blur 0x3 design-blurred.png
+
+# 调整大小
+magick design.png -resize 800x design-resized.png
+
+# 调整亮度对比度（亮度 -10，对比度 +5）
+magick design.png -brightness-contrast -10x5 design-adjusted.png
+
+# 灰度化
+magick design.png -colorspace Gray design-gray.png
+
+# 添加暗角
+magick design.png -vignette 0x3 design-vignette.png
+
+# 转换为 JPEG
+magick design.png -quality 85 design.jpg
+```
+
+**发现问题时的处理**：
 Iterate with a single targeted change, then re-check.
 - 排版/布局/元素位置问题 → 修改 SVG 代码，重新渲染
-- 色调/模糊/格式/尺寸问题 → 使用 `post-process.mjs` 后期处理
+- 色调/模糊/格式/尺寸问题 → 使用 `magick` 后期处理
 
 ### Phase 5: 交付
 
@@ -206,7 +171,7 @@ Iterate with a single targeted change, then re-check.
 当用户需要**透明 PNG**（如 Logo、徽章、水印）：
 
 ```bash
-node <skill-dir>/scripts/dist/render.mjs logo.svg -o logo.png --background transparent
+magick logo.svg -density 192 -background none logo.png
 ```
 
 SVG 中**不要**写背景层：

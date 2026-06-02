@@ -10,26 +10,30 @@
 
 **技术栈**：
 - **构建工具**：Vite 8.0.14（使用 Rolldown，Rust 实现的打包器，替代 Rollup）
-- **构建脚本**：自定义 `build.mjs`，程序化逐个构建（避免多 chunk 问题）
-- **语言**：TypeScript 5.4+
+- **语言**：TypeScript 5.4+（仅 music 技能使用）
 - **运行环境**：Node.js 22+
 
-每个技能独立可用，跨平台（Windows / macOS / Linux），零 npm 安装即可运行（所有依赖已编译打包到 dist）。
+技能类型：
+- **代码型技能**（如 music）：使用 TypeScript 开发，通过 Vite 编译为 .mjs 文件
+- **资源型技能**（如 imagegen-magick）：纯文档 + 内置字体，通过 Vite public 目录机制复制资源
+
+每个技能独立可用，跨平台（Windows / macOS / Linux），零 npm 安装即可运行。
 
 ## 目录结构（重要）
 
 ```
 skills-uid13/
-├── src/                           # 源码目录（TypeScript 开发时）
-│   ├── imagegen-magick/           # 图像生成技能（当前实现）
-│   │   ├── src/bin/               # CLI 入口（info/render/post-process）
-│   │   ├── src/lib/               # 工具库（magick/colors/spawn）
-│   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
-│   │   ├── fonts/                 # 内置字体文件（Cascadia Next SC NF）
-│   │   ├── build.mjs              # 程序化多入口构建脚本
-│   │   ├── tsconfig.json          # 模块级 TS 配置
-│   │   └── package.json           # 模块级依赖与构建脚本
-│   └── music/                     # 音乐播放技能（TypeScript + Vite 8）
+├── src/                           # 源码目录
+│   ├── imagegen-magick/           # 图像生成技能（纯资源型）
+│   │   ├── public/                # 资源目录（构建时复制到 skills/）
+│   │   │   ├── fonts/             # 内置字体（Cascadia Next SC NF）
+│   │   │   ├── references/        # 参考文档
+│   │   │   └── SKILL.md           # 技能入口文档
+│   │   ├── src/                   # Vite 构建入口
+│   │   │   └── dummy.js           # 占位文件
+│   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
+│   │   └── package.json           # 模块级配置
+│   └── music/                     # 音乐播放技能（代码型，TypeScript）
 │       ├── src/bin/               # CLI 入口（music）
 │       ├── src/lib/               # 工具库（ytdl/scoring/mpv/output）
 │       ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
@@ -38,10 +42,10 @@ skills-uid13/
 │
 ├── skills/                        # 输出产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
-│   │   ├── SKILL.md               # 技能入口文件（工作流方法论）
-│   │   ├── README.md              # 用户文档（由 build 自动拷贝）
+│   │   ├── SKILL.md               # 技能入口文档
 │   │   ├── references/            # 按需加载的参考文档
-│   │   └── scripts/dist/*.mjs     # 编译后的 CLI 工具
+│   │   ├── fonts/                 # 内置字体文件
+│   │   └── scripts/dummy.js       # 占位文件（Vite 构建产物）
 │   └── music/
 │       ├── SKILL.md
 │       └── scripts/dist/          # 编译后的 .mjs 文件
@@ -84,14 +88,15 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 ### 2. 零依赖分发
 
-- 所有运行时依赖在 src 内部，通过 Vite 8 (Rolldown) 打包进 dist
+- 代码型技能：所有运行时依赖在 src 内部，通过 Vite 8 (Rolldown) 打包进 dist
+- 资源型技能：无代码依赖，仅文档和资源文件
 - 用户克隆仓库或安装技能后**不需要** `npm install` 即可使用
 - 仅开发时才需要 `npm install`
 
 ### 3. 跨平台兼容
 
 - 所有脚本必须同时工作于 Windows / macOS / Linux
-- 使用项目内的跨平台 spawn 封装（imagegen-magick: `lib/spawn.ts`，music: `lib/utils.ts`），不要直接 `child_process.spawn`
+- 使用项目内的跨平台 spawn 封装（music: `lib/utils.ts`），不要直接 `child_process.spawn`
 - 文件路径统一使用 `node:path` 的 posix 或自动识别
 - Windows 上使用 Git Bash（不支持 PowerShell）
 
@@ -104,12 +109,9 @@ export async function detectFonts(): Promise<FontInfo[]> {
 ### 5. 单一职责
 
 每个工具只负责一件事：
-- `info.mjs`：环境信息检查
-- `render.mjs`：SVG → PNG 渲染
-- `post-process.mjs`：图像后期处理（调色、模糊、格式转换等）
 - `music.mjs`：音乐播放控制（单入口，内部通过 commander 分发子命令）
 
-方法识别（SKILL.md 文档）决定调用哪个工具。
+对于资源型技能（如 imagegen-magick），AI Agent 直接调用外部工具（如 `magick` CLI），无需自定义脚本。
 
 ### 6. 错误处理
 
@@ -120,7 +122,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
   - `0`：成功
   - `1`：一般性错误
   - `2`：参数错误
-  - `3`：依赖缺失（如 ImageMagick 未安装）
+  - `3`：依赖缺失
 
 ### 7. 输出格式
 
@@ -130,11 +132,11 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 ## 开发流程
 
-### 新增/修改技能代码
+### 修改代码型技能（如 music）
 
 1. 进入 `src/<skill-name>/`：
    ```bash
-   cd src/imagegen-magick
+   cd src/music
    ```
 
 2. 安装依赖（首次或依赖变更）：
@@ -156,16 +158,22 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 6. 验证编译产物：
     ```bash
-    # imagegen-magick 示例
-    node ../../skills/imagegen-magick/scripts/dist/info.mjs
-    
-    # music 示例
     node ../../skills/music/scripts/dist/music.mjs --help
     ```
 
 7. 确保产物已更新后提交
 
+### 修改资源型技能（如 imagegen-magick）
+
+1. 进入 `src/<skill-name>/public/` 目录
+2. 修改 SKILL.md 或 references/ 下的文档
+3. 如需添加字体或其他资源，放入 public/ 对应子目录
+4. 运行 `npm run build` 构建（会复制 public/ 内容到 skills/）
+5. 验证 `skills/<skill-name>/` 下的产物已更新
+
 ### 新增技能
+
+**代码型技能**：
 
 1. 在 `src/<new-skill>/` 创建项目：
    ```bash
@@ -179,10 +187,69 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 3. 根 package.json 的 workspaces 会自动识别
 
+**资源型技能**：
+
+1. 在 `src/<new-skill>/` 创建目录结构：
+   ```bash
+   mkdir -p src/<new-skill>/public
+   mkdir -p src/<new-skill>/src
+   ```
+
+2. 创建 `package.json`（极简配置）：
+   ```json
+   {
+     "name": "<new-skill>-src",
+     "version": "1.0.0",
+     "private": true,
+     "type": "module",
+     "scripts": {
+       "build": "vite build",
+       "dev": "vite build --watch"
+     },
+     "devDependencies": {
+       "vite": "^8.0.0"
+     }
+   }
+   ```
+
+3. 创建 `vite.config.ts`（使用 publicDir 机制）：
+   ```typescript
+   import { defineConfig } from 'vite'
+   import { resolve, dirname } from 'node:path'
+   import { fileURLToPath } from 'node:url'
+
+   const __dirname = dirname(fileURLToPath(import.meta.url))
+
+   export default defineConfig({
+     publicDir: resolve(__dirname, 'public'),
+     build: {
+       outDir: resolve(__dirname, '../../skills/<new-skill>'),
+       emptyOutDir: true,
+       lib: {
+         entry: resolve(__dirname, 'src/dummy.js'),
+         formats: ['es'],
+       },
+       rollupOptions: {
+         output: {
+           entryFileNames: 'scripts/dummy.js',
+         },
+       },
+     },
+   })
+   ```
+
+4. 在 `public/` 下放置 SKILL.md、fonts/、references/ 等资源
+
+5. 创建 `src/dummy.js` 占位文件：
+   ```javascript
+   // Vite 构建占位文件
+   export {}
+   ```
+
 ### 提交前检查
 
 ```bash
-# 类型检查
+# 类型检查（仅代码型技能）
 npm run typecheck
 
 # 编译所有技能
@@ -200,17 +267,18 @@ npm run test
 | `README.md` | 项目使用说明 |
 | `package.json` | Monorepo 根配置 |
 | `tsconfig.json` | TypeScript 根配置（noEmit=true，仅用于类型检查） |
-| `src/*/vite.config.ts` | 各技能的 Vite 8 (Rolldown) 编译配置 |
-| `src/*/build.mjs` | 构建脚本（当前仅 imagegen-magick 有自定义构建） |
+| `src/*/vite.config.ts` | 各技能的 Vite 配置 |
+| `src/*/public/` | 资源型技能的资源目录（构建时复制到 skills/） |
 | `skills/*/SKILL.md` | 技能入口文档（符合 Agent Skills 规范） |
-| `skills/*/README.md` | 用户文档（由 build 从 src 自动拷贝） |
-| `skills/*/references/` | 按需加载的参考文档（由 build 从 src 自动拷贝） |
+| `skills/*/references/` | 按需加载的参考文档（由构建从 src 复制） |
+| `skills/*/fonts/` | 内置字体文件（由构建从 src 复制） |
 
 ## 重要警告
 
-⚠️ **不要**手动修改 `skills/*/scripts/dist/` 目录下的文件，它们都是编译产物
+⚠️ **不要**手动修改 `skills/*/scripts/` 目录下的文件，它们都是构建产物
 ⚠️ **不要**在 `skills/*/SKILL.md` 里堆砌代码和配方，那是按职责分层后由 AI 动态加载的
-⚠️ **不要**把 npm 包作为运行时依赖添加到 `skills/*/scripts/dist/` 之外
+⚠️ **不要**把 npm 包作为运行时依赖添加到资源型技能中
+⚠️ **不要**删除 `src/dummy.js`，Vite 构建需要至少一个入口文件
 
 ## 编码风格
 
@@ -227,16 +295,14 @@ npm run test
 npm run build          # 编译所有技能
 npm run dev            # 监听所有技能的改动
 npm run test           # 运行所有测试
-npm run typecheck      # 类型检查
+npm run typecheck      # 类型检查（仅代码型技能）
 
 # 单个技能命令（需要 cd 到对应 src 目录）
-npm -w imagegen-magick-src build   # 编译指定技能
+npm -w imagegen-magick-src build   # 编译资源型技能（复制 public/ 到 skills/）
+npm -w imagegen-magick-src dev     # 监听资源型技能
 
-npm -w imagegen-magick-src dev     # 监听指定技能
-
-npm -w music-src build             # 编译音乐技能
-
-npm -w music-src dev               # 监听音乐技能
+npm -w music-src build             # 编译代码型技能
+npm -w music-src dev               # 监听代码型技能
 ```
 
 ## 参考资源
@@ -245,5 +311,6 @@ npm -w music-src dev               # 监听音乐技能
 - skills.sh 目录：https://skills.sh/
 - OpenAI imagegen 参考：https://github.com/openai/skills/tree/main/skills/.system/imagegen
 - Vite 8 官方文档：https://vite.dev/
+- Vite public 目录：https://vitejs.dev/guide/assets.html#the-public-directory
 - Rolldown 文档：https://rolldown.rs/
 - TypeScript 官方：https://www.typescriptlang.org/

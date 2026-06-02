@@ -12,10 +12,10 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 
 ## 包含的技能
 
-| 技能 | 说明 | 状态 |
-|------|------|------|
-| **imagegen-magick** | 程序化图像生成（SVG + ImageMagick + 内置字体 + Iconify 图标） | v1.5.0 |
-| **music** | 在线音乐播放（基于 mpv + yt-dlp） | 已实现 |
+| 技能 | 类型 | 说明 | 状态 |
+|------|------|------|------|
+| **imagegen-magick** | 资源型 | 程序化图像生成（文档 + 内置字体 + Iconify 图标） | 纯资源，Vite public 构建 |
+| **music** | 代码型 | 在线音乐播放（基于 mpv + yt-dlp） | 已实现 |
 
 ## 安装
 
@@ -25,34 +25,32 @@ npx skills add https://github.com/uid13/skills.git
 
 # 只安装指定技能
 npx skills add https://github.com/uid13/skills.git --skill imagegen-magick
-
-# 锁定版本（推荐生产使用）
-npx skills add https://github.com/uid13/skills.git --skill imagegen-magick --pin v1.5.0
 ```
 
 ## 项目结构
 
 ```
 skills-uid13/
-├── src/                           # 源码（TypeScript 开发）
-│   ├── imagegen-magick/           # Vite 8 + Rolldown 工程
-│   │   ├── src/bin/               # CLI 入口
-│   │   ├── src/lib/               # 工具库
-│   │   ├── build.mjs              # 多入口构建脚本
-│   │   ├── vite.config.ts
-│   │   └── tsconfig.json
-│   └── music/                     # Vite 8 + Rolldown 工程
+├── src/                           # 源码
+│   ├── imagegen-magick/           # 图像生成技能（资源型）
+│   │   ├── public/                # 资源目录（构建时复制到 skills/）
+│   │   │   ├── fonts/             # 内置字体
+│   │   │   ├── references/        # 参考文档
+│   │   │   └── SKILL.md           # 技能入口文档
+│   │   ├── src/                   # Vite 构建入口
+│   │   │   └── dummy.js           # 占位文件
+│   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
+│   │   └── package.json
+│   └── music/                     # 音乐播放技能（代码型，TypeScript）
 │       ├── src/bin/
 │       ├── src/lib/
 │       └── vite.config.ts
 │
-├── skills/                        # 编译产物（Agent Skills 规范结构）
+├── skills/                        # 构建产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
-│   │   ├── SKILL.md               # 技能入口（工作流）
-│   │   ├── README.md              # 用户文档
-│   │   ├── references/            # 按需加载的参考文档
-│   │   ├── fonts/                 # 内置字体（Cascadia Next SC NF）
-│   │   └── scripts/dist/*.mjs     # 编译后的 CLI 工具
+│   │   ├── SKILL.md               # 技能入口文档
+│   │   ├── references/            # 参考文档
+│   │   └── fonts/                 # 内置字体
 │   └── music/
 │       ├── SKILL.md
 │       └── scripts/dist/
@@ -63,7 +61,7 @@ skills-uid13/
 ```
 
 **用户视角**：只需关心 `skills/` 目录。
-**开发者视角**：源码在 `src/`，编译输出到 `skills/`。
+**开发者视角**：源码在 `src/`，构建输出到 `skills/`。
 
 ## 开发环境
 
@@ -80,22 +78,20 @@ git clone https://github.com/uid13/skills.git
 cd skills
 npm install
 npm run build
-
-# 验证
-node skills/imagegen-magick/scripts/dist/info.mjs
 ```
 
 ### 开发模式
 
 ```bash
 npm run dev                        # 监听所有技能
-npm -w imagegen-magick-src dev     # 监听单个技能
+npm -w imagegen-magick-src dev     # 监听资源型技能
+npm -w music-src dev               # 监听代码型技能
 ```
 
 ## 各技能文档
 
-- [imagegen-magick](./skills/imagegen-magick/README.md) — 程序化图像生成
-- [music](./skills/music/SKILL.md) — 在线音乐播放
+- [imagegen-magick](./skills/imagegen-magick/SKILL.md) — 程序化图像生成（资源型技能）
+- [music](./skills/music/SKILL.md) — 在线音乐播放（代码型技能）
 
 ## 贡献
 
@@ -106,12 +102,11 @@ npm -w imagegen-magick-src dev     # 监听单个技能
 - **中文注释**：所有代码（函数、类、常量、关键逻辑）都需中文注释
 - **跨平台**：同时支持 Windows / macOS / Linux
 - **零安装分发**：用户拿到技能后无需 `npm install` 即可使用
-- **ESM only**：所有输出产物为 `.mjs` 格式
+- **ESM only**：代码型技能的输出产物为 `.mjs` 格式
 
 ### 代码提交流程
 
 ```bash
-npm run typecheck
 npm run build
 git add skills/
 git commit -m "feat(imagegen): add new feature"
