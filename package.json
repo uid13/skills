@@ -1,6 +1,6 @@
 {
   "name": "uid13-skills",
-  "version": "1.1.0",
+  "version": "1.7.0",
   "private": true,
   "description": "uid13 的 AI Agent 技能集合（Monorepo 工程化）",
   "type": "module",
