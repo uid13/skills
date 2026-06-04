@@ -16,6 +16,7 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 |------|------|------|------|
 | **imagegen-magick** | 资源型 | 程序化图像生成（文档 + 内置字体 + Iconify 图标） | 纯资源，Vite public 构建 |
 | **music** | 代码型 | 在线音乐播放（模型调用 yt-dlp/mpv，music.mjs 仅 IPC 控制） | 已简化 |
+| **hq** | 代码型 | 股票/基金/期货/指数实时行情查询（新浪接口，GBK 转码） | 已上线 |
 
 ## 安装
 
@@ -45,6 +46,10 @@ skills-uid13/
 │       ├── src/bin/               # CLI 入口（music.ts - IPC 控制）
 │       ├── src/lib/               # 工具库（mpv.ts - IPC 通信）
 │       └── vite.config.ts
+│   └── hq/                        # 行情查询技能（代码型，TypeScript）
+│       ├── src/bin/               # CLI 入口（hq.ts）
+│       ├── src/lib/               # 工具库（parser.ts, sina.ts, types.ts）
+│       └── vite.config.ts
 │
 ├── skills/                        # 构建产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
@@ -52,6 +57,9 @@ skills-uid13/
 │   │   ├── references/            # 参考文档
 │   │   └── fonts/                 # 内置字体
 │   └── music/
+│       ├── SKILL.md
+│       └── scripts/dist/
+│   └── hq/
 │       ├── SKILL.md
 │       └── scripts/dist/
 │
@@ -70,6 +78,7 @@ skills-uid13/
 - Node.js >= 22, npm >= 10, Git
 - **imagegen-magick**: [ImageMagick 7+](https://imagemagick.org/script/download.php)
 - **music**: [mpv](https://mpv.io/) + [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- **hq**: 无额外依赖（Node.js 即可）
 
 ### 安装与运行
 
@@ -85,13 +94,15 @@ npm run build
 ```bash
 npm run dev                        # 监听所有技能
 npm -w imagegen-magick-src dev     # 监听资源型技能
-npm -w music-src dev               # 监听代码型技能
+npm -w music-src dev               # 监听音乐播放技能
+npm -w hq-src dev                  # 监听行情查询技能
 ```
 
 ## 各技能文档
 
 - [imagegen-magick](./skills/imagegen-magick/SKILL.md) — 程序化图像生成（资源型技能）
 - [music](./skills/music/SKILL.md) — 在线音乐播放（代码型技能）
+- [hq](./skills/hq/SKILL.md) — 实时行情查询（代码型技能）
 
 ## 贡献
 

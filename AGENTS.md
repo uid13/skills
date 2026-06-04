@@ -10,11 +10,11 @@
 
 **技术栈**：
 - **构建工具**：Vite 8.0.14（使用 Rolldown，Rust 实现的打包器，替代 Rollup）
-- **语言**：TypeScript 5.4+（仅 music 技能使用）
+- **语言**：TypeScript 5.4+（music、hq 技能使用）
 - **运行环境**：Node.js 22+
 
 技能类型：
-- **代码型技能**（如 music）：使用 TypeScript 开发，通过 Vite 编译为 .mjs 文件
+- **代码型技能**（如 music、hq）：使用 TypeScript 开发，通过 Vite 编译为 .mjs 文件
 - **资源型技能**（如 imagegen-magick）：纯文档 + 内置字体，通过 Vite public 目录机制复制资源
 
 每个技能独立可用，跨平台（Windows / macOS / Linux），零 npm 安装即可运行。
@@ -33,9 +33,15 @@ skills-uid13/
 │   │   │   └── dummy.js           # 占位文件
 │   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
 │   │   └── package.json           # 模块级配置
-│   └── music/                     # 音乐播放技能（代码型，TypeScript）
-│       ├── src/bin/               # CLI 入口（music）
-│       ├── src/lib/               # 工具库（mpv IPC 控制）
+│   ├── music/                     # 音乐播放技能（代码型，TypeScript）
+│   │   ├── src/bin/               # CLI 入口（music）
+│   │   ├── src/lib/               # 工具库（mpv IPC 控制）
+│   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
+│   │   ├── tsconfig.json          # 模块级 TS 配置
+│   │   └── package.json           # 模块级依赖与构建脚本
+│   └── hq/                        # 行情查询技能（代码型，TypeScript）
+│       ├── src/bin/               # CLI 入口（hq）
+│       ├── src/lib/               # 工具库（行情解析、HTTP 请求）
 │       ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
 │       ├── tsconfig.json          # 模块级 TS 配置
 │       └── package.json           # 模块级依赖与构建脚本
@@ -46,7 +52,10 @@ skills-uid13/
 │   │   ├── references/            # 按需加载的参考文档
 │   │   ├── fonts/                 # 内置字体文件
 │   │   └── scripts/dummy.js       # 占位文件（Vite 构建产物）
-│   └── music/
+│   ├── music/
+│   │   ├── SKILL.md
+│   │   └── scripts/dist/          # 编译后的 .mjs 文件
+│   └── hq/
 │       ├── SKILL.md
 │       └── scripts/dist/          # 编译后的 .mjs 文件
 │
@@ -110,6 +119,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 每个工具只负责一件事：
 - `music.mjs`：mpv 播放控制（IPC 透传，模型直接调用 yt-dlp 和 mpv CLI）
+- `hq.mjs`：行情查询（接收代码参数，调用新浪接口，输出格式化表格）
 
 对于资源型技能（如 imagegen-magick），AI Agent 直接调用外部工具（如 `magick` CLI），无需自定义脚本。
 
@@ -128,10 +138,11 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 - music.mjs 默认输出 JSON 格式（便于 AI 解析）
 - 所有控制命令返回统一结构：`{ status, action, ... }`
+- hq.mjs 输出 Markdown 表格格式（便于 AI 直接展示）
 
 ## 开发流程
 
-### 修改代码型技能（如 music）
+### 修改代码型技能（如 music、hq）
 
 1. 进入 `src/<skill-name>/`：
    ```bash
@@ -300,8 +311,11 @@ npm run typecheck      # 类型检查（仅代码型技能）
 npm -w imagegen-magick-src build   # 编译资源型技能（复制 public/ 到 skills/）
 npm -w imagegen-magick-src dev     # 监听资源型技能
 
-npm -w music-src build             # 编译代码型技能
-npm -w music-src dev               # 监听代码型技能
+npm -w music-src build             # 编译音乐播放技能
+npm -w music-src dev               # 监听音乐播放技能
+
+npm -w hq-src build                # 编译行情查询技能
+npm -w hq-src dev                  # 监听行情查询技能
 ```
 
 ## 参考资源
