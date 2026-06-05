@@ -10,12 +10,13 @@
 
 **技术栈**：
 - **构建工具**：Vite 8.0.14（使用 Rolldown，Rust 实现的打包器，替代 Rollup）
-- **语言**：TypeScript 5.4+（music、hq 技能使用）
+- **语言**：TypeScript 5.4+（music、hq 技能使用）；Vue 3 + UnoCSS（pp 技能使用）
 - **运行环境**：Node.js 22+
 
 技能类型：
 - **代码型技能**（如 music、hq）：使用 TypeScript 开发，通过 Vite 编译为 .mjs 文件
 - **资源型技能**（如 imagegen-magick）：纯文档 + 内置字体，通过 Vite public 目录机制复制资源
+- **网页型技能**（如 pp）：使用 Vue 3 + UnoCSS 开发，通过 vite-plugin-singlefile 编译为单个 HTML 文件
 
 每个技能独立可用，跨平台（Windows / macOS / Linux），零 npm 安装即可运行。
 
@@ -39,10 +40,26 @@ skills-uid13/
 │   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
 │   │   ├── tsconfig.json          # 模块级 TS 配置
 │   │   └── package.json           # 模块级依赖与构建脚本
-│   └── hq/                        # 行情查询技能（代码型，TypeScript）
-│       ├── src/bin/               # CLI 入口（hq）
-│       ├── src/lib/               # 工具库（行情解析、HTTP 请求）
-│       ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
+│   ├── hq/                        # 行情查询技能（代码型，TypeScript）
+│   │   ├── src/bin/               # CLI 入口（hq）
+│   │   ├── src/lib/               # 工具库（行情解析、HTTP 请求）
+│   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
+│   │   ├── tsconfig.json          # 模块级 TS 配置
+│   │   └── package.json           # 模块级依赖与构建脚本
+│   └── pp/                        # 图片画廊技能（网页型，Vue 3 + UnoCSS）
+│       ├── src/                   # Vue 源码
+│       │   ├── App.vue            # 主组件（随机渐变背景）
+│       │   ├── components/        # 组件目录
+│       │   │   └── Gallery.vue    # 画廊组件（瀑布流 + Viewer.js）
+│       │   ├── types/             # TypeScript 类型定义
+│       │   ├── main.ts            # Vue 应用入口
+│       │   └── env.d.ts           # 环境类型声明
+│       ├── public/                # 运行时资源（构建时复制到 skills/）
+│       │   ├── icons/             # SVG 图标
+│       │   └── pp-data.js         # 图片数据（运行时由 Agent 写入）
+│       ├── index.html             # HTML 入口
+│       ├── vite.config.ts         # Vite + singlefile 配置
+│       ├── uno.config.ts          # UnoCSS 配置
 │       ├── tsconfig.json          # 模块级 TS 配置
 │       └── package.json           # 模块级依赖与构建脚本
 │
@@ -55,9 +72,14 @@ skills-uid13/
 │   ├── music/
 │   │   ├── SKILL.md
 │   │   └── scripts/dist/          # 编译后的 .mjs 文件
-│   └── hq/
-│       ├── SKILL.md
-│       └── scripts/dist/          # 编译后的 .mjs 文件
+│   ├── hq/
+│   │   ├── SKILL.md
+│   │   └── scripts/dist/          # 编译后的 .mjs 文件
+│   └── pp/
+│       ├── SKILL.md               # 技能入口文档
+│       ├── index.html             # 单文件构建产物（JS/CSS 全部内联）
+│       ├── icons/                 # SVG 图标
+│       └── pp-data.js             # 图片数据（运行时由 Agent 写入）
 │
 ├── package.json                   # Monorepo 根配置（workspaces）
 ├── tsconfig.json                  # 根 TypeScript 配置
@@ -99,6 +121,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 - 代码型技能：所有运行时依赖在 src 内部，通过 Vite 8 (Rolldown) 打包进 dist
 - 资源型技能：无代码依赖，仅文档和资源文件
+- 网页型技能：所有依赖（Vue、UnoCSS、Viewer.js）通过 vite-plugin-singlefile 内联到 HTML
 - 用户克隆仓库或安装技能后**不需要** `npm install` 即可使用
 - 仅开发时才需要 `npm install`
 
@@ -120,6 +143,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 每个工具只负责一件事：
 - `music.mjs`：mpv 播放控制（IPC 透传，模型直接调用 yt-dlp 和 mpv CLI）
 - `hq.mjs`：行情查询（接收代码参数，调用新浪接口，输出格式化表格）
+- `pp/index.html`：图片画廊展示（Agent 负责生成 pp-data.js，HTML 负责渲染）
 
 对于资源型技能（如 imagegen-magick），AI Agent 直接调用外部工具（如 `magick` CLI），无需自定义脚本。
 
@@ -139,6 +163,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 - music.mjs 默认输出 JSON 格式（便于 AI 解析）
 - 所有控制命令返回统一结构：`{ status, action, ... }`
 - hq.mjs 输出 Markdown 表格格式（便于 AI 直接展示）
+- pp 技能输出单个 HTML 文件（浏览器直接打开）
 
 ## 开发流程
 
@@ -180,6 +205,36 @@ export async function detectFonts(): Promise<FontInfo[]> {
 3. 如需添加字体或其他资源，放入 public/ 对应子目录
 4. 运行 `npm run build` 构建（会复制 public/ 内容到 skills/）
 5. 验证 `skills/<skill-name>/` 下的产物已更新
+
+### 修改网页型技能（如 pp）
+
+1. 进入 `src/pp/`：
+   ```bash
+   cd src/pp
+   ```
+
+2. 安装依赖（首次或依赖变更）：
+   ```bash
+   npm install
+   ```
+
+3. 开发模式（热更新）：
+   ```bash
+   npm run dev
+   ```
+
+4. 修改 Vue 组件或样式
+
+5. 重新编译：
+   ```bash
+   npm run build
+   ```
+
+6. 验证编译产物：
+   - 检查 `skills/pp/index.html` 是否已更新
+   - 用浏览器打开 `skills/pp/index.html` 测试功能
+
+7. 确保产物已更新后提交
 
 ### 新增技能
 
@@ -256,6 +311,47 @@ export async function detectFonts(): Promise<FontInfo[]> {
    export {}
    ```
 
+**网页型技能**：
+
+1. 在 `src/<new-skill>/` 创建 Vue 3 项目：
+   ```bash
+   mkdir -p src/<new-skill>/src/components
+   mkdir -p src/<new-skill>/public
+   cd src/<new-skill>
+   npm init -y
+   ```
+
+2. 安装依赖：
+   ```bash
+   npm install vue
+   npm install -D vite @vitejs/plugin-vue unocss vite-plugin-singlefile typescript
+   ```
+
+3. 创建 `vite.config.ts`（使用 singlefile 插件）：
+   ```typescript
+   import { defineConfig } from 'vite'
+   import { resolve } from 'node:path'
+   import vue from '@vitejs/plugin-vue'
+   import UnoCSS from 'unocss/vite'
+   import { viteSingleFile } from 'vite-plugin-singlefile'
+
+   export default defineConfig({
+     plugins: [UnoCSS(), vue(), viteSingleFile()],
+     build: {
+       outDir: resolve(__dirname, '../../skills/<new-skill>'),
+       emptyOutDir: true,
+       rollupOptions: {
+         input: resolve(__dirname, 'index.html'),
+       },
+     },
+     publicDir: resolve(__dirname, 'public'),
+   })
+   ```
+
+4. 创建 `index.html`、`src/main.ts`、`src/App.vue` 等 Vue 文件
+
+5. 在 `public/` 下放置运行时资源（如数据文件、图标等）
+
 ### 提交前检查
 
 ```bash
@@ -278,10 +374,11 @@ npm run test
 | `package.json` | Monorepo 根配置 |
 | `tsconfig.json` | TypeScript 根配置（noEmit=true，仅用于类型检查） |
 | `src/*/vite.config.ts` | 各技能的 Vite 配置 |
-| `src/*/public/` | 资源型技能的资源目录（构建时复制到 skills/） |
+| `src/*/public/` | 资源型/网页型技能的资源目录（构建时复制到 skills/） |
 | `skills/*/SKILL.md` | 技能入口文档（符合 Agent Skills 规范） |
 | `skills/*/references/` | 按需加载的参考文档（由构建从 src 复制） |
 | `skills/*/fonts/` | 内置字体文件（由构建从 src 复制） |
+| `skills/pp/index.html` | 网页型技能的单文件构建产物 |
 
 ## 重要警告
 
@@ -289,6 +386,7 @@ npm run test
 ⚠️ **不要**在 `skills/*/SKILL.md` 里堆砌代码和配方，那是按职责分层后由 AI 动态加载的
 ⚠️ **不要**把 npm 包作为运行时依赖添加到资源型技能中
 ⚠️ **不要**删除 `src/dummy.js`，Vite 构建需要至少一个入口文件
+⚠️ **不要**手动修改 `skills/pp/index.html`，它是 Vite 构建产物
 
 ## 编码风格
 
@@ -316,6 +414,9 @@ npm -w music-src dev               # 监听音乐播放技能
 
 npm -w hq-src build                # 编译行情查询技能
 npm -w hq-src dev                  # 监听行情查询技能
+
+npm -w pp-src build                # 编译图片画廊技能（输出单文件 HTML）
+npm -w pp-src dev                  # 监听图片画廊技能（热更新开发）
 ```
 
 ## 参考资源
@@ -327,3 +428,6 @@ npm -w hq-src dev                  # 监听行情查询技能
 - Vite public 目录：https://vitejs.dev/guide/assets.html#the-public-directory
 - Rolldown 文档：https://rolldown.rs/
 - TypeScript 官方：https://www.typescriptlang.org/
+- Vue 3 官方文档：https://vuejs.org/
+- UnoCSS 官方文档：https://unocss.dev/
+- vite-plugin-singlefile：https://github.com/nicbarker/vite-plugin-singlefile

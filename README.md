@@ -17,6 +17,7 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 | **imagegen-magick** | 资源型 | 程序化图像生成（文档 + 内置字体 + Iconify 图标） | 纯资源，Vite public 构建 |
 | **music** | 代码型 | 在线音乐播放（模型调用 yt-dlp/mpv，music.mjs 仅 IPC 控制） | 已简化 |
 | **hq** | 代码型 | 股票/基金/期货/指数实时行情查询（新浪接口，GBK 转码） | 已上线 |
+| **pp** | 网页型 | Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML） | 已上线 |
 
 ## 安装
 
@@ -42,26 +43,36 @@ skills-uid13/
 │   │   │   └── dummy.js           # 占位文件
 │   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
 │   │   └── package.json
-│   └── music/                     # 音乐播放技能（代码型，TypeScript）
-│       ├── src/bin/               # CLI 入口（music.ts - IPC 控制）
-│       ├── src/lib/               # 工具库（mpv.ts - IPC 通信）
-│       └── vite.config.ts
-│   └── hq/                        # 行情查询技能（代码型，TypeScript）
-│       ├── src/bin/               # CLI 入口（hq.ts）
-│       ├── src/lib/               # 工具库（parser.ts, sina.ts, types.ts）
-│       └── vite.config.ts
+│   ├── music/                     # 音乐播放技能（代码型，TypeScript）
+│   │   ├── src/bin/               # CLI 入口（music.ts - IPC 控制）
+│   │   ├── src/lib/               # 工具库（mpv.ts - IPC 通信）
+│   │   └── vite.config.ts
+│   ├── hq/                        # 行情查询技能（代码型，TypeScript）
+│   │   ├── src/bin/               # CLI 入口（hq.ts）
+│   │   ├── src/lib/               # 工具库（parser.ts, sina.ts, types.ts）
+│   │   └── vite.config.ts
+│   └── pp/                        # 图片画廊技能（网页型，Vue 3 + UnoCSS）
+│       ├── src/                   # Vue 源码（App.vue, Gallery.vue）
+│       ├── public/                # 运行时资源（pp-data.js, icons/）
+│       ├── index.html             # HTML 入口
+│       └── vite.config.ts         # Vite + singlefile 配置
 │
 ├── skills/                        # 构建产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
 │   │   ├── SKILL.md               # 技能入口文档
 │   │   ├── references/            # 参考文档
 │   │   └── fonts/                 # 内置字体
-│   └── music/
+│   ├── music/
+│   │   ├── SKILL.md
+│   │   └── scripts/dist/
+│   ├── hq/
+│   │   ├── SKILL.md
+│   │   └── scripts/dist/
+│   └── pp/
 │       ├── SKILL.md
-│       └── scripts/dist/
-│   └── hq/
-│       ├── SKILL.md
-│       └── scripts/dist/
+│       ├── index.html             # 单文件构建产物（JS/CSS 全部内联）
+│       ├── icons/
+│       └── pp-data.js
 │
 ├── AGENTS.md                      # AI 编码助手协作指南
 ├── package.json                   # Monorepo 根配置
@@ -79,6 +90,7 @@ skills-uid13/
 - **imagegen-magick**: [ImageMagick 7+](https://imagemagick.org/script/download.php)
 - **music**: [mpv](https://mpv.io/) + [yt-dlp](https://github.com/yt-dlp/yt-dlp)
 - **hq**: 无额外依赖（Node.js 即可）
+- **pp**: [gallery-dl](https://github.com/mikf/gallery-dl/releases)（Pinterest 图片 URL 获取）
 
 ### 安装与运行
 
@@ -96,6 +108,7 @@ npm run dev                        # 监听所有技能
 npm -w imagegen-magick-src dev     # 监听资源型技能
 npm -w music-src dev               # 监听音乐播放技能
 npm -w hq-src dev                  # 监听行情查询技能
+npm -w pp-src dev                  # 监听图片画廊技能
 ```
 
 ## 各技能文档
@@ -103,6 +116,7 @@ npm -w hq-src dev                  # 监听行情查询技能
 - [imagegen-magick](./skills/imagegen-magick/SKILL.md) — 程序化图像生成（资源型技能）
 - [music](./skills/music/SKILL.md) — 在线音乐播放（代码型技能）
 - [hq](./skills/hq/SKILL.md) — 实时行情查询（代码型技能）
+- [pp](./skills/pp/SKILL.md) — Pinterest 图片画廊（网页型技能）
 
 ## 贡献
 
