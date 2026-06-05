@@ -21,32 +21,53 @@ gallery-dl --version
 - 下载地址：https://github.com/mikf/gallery-dl/releases
 - 安装后将 gallery-dl.exe 添加到系统 PATH
 
-### Phase 2: 搜索图片
+### Phase 2: 搜索图片（智能双搜索策略）
 
-使用 gallery-dl 获取 Pinterest 图片链接（不下载）：
+**步骤 2.1：理解用户意图并构造搜索词**
+
+模型需要理解用户输入的主题/意图，构造 2 个不同角度的 Pinterest 友好搜索词：
+
+**搜索词构造规则**：
+- 优先使用英文（Pinterest 国际内容更丰富）
+- 中国明星/中国特色主题可保留中文
+- 搜索词应简洁、具体，避免过长或过于抽象
+- 2 个搜索词应从不同角度描述同一主题
+
+**示例**：
+- "成都美食" → `["Chengdu food", "Sichuan street food"]`
+- "绚丽星空" → `["starry night sky", "milky way photography"]`
+- "鞠婧祎" → `["Ju Jingyi", "鞠婧祎"]`
+- "深圳美景" → `["Shenzhen skyline", "Shenzhen city view"]`
+- "猫咪" → `["cute cat", "kitten portrait"]`
+
+**步骤 2.2：执行 2 次搜索**
+
+依次执行 2 次 `gallery-dl` 命令，每次使用不同的搜索词：
 
 ```bash
-gallery-dl --get-urls --http-timeout 10 --range 1-20 "https://www.pinterest.com/search/pins/?q=<关键词>"
+# 第一次搜索
+gallery-dl --get-urls --http-timeout 10 --range 1-15 "https://www.pinterest.com/search/pins/?q=<关键词1>"
+
+# 第二次搜索
+gallery-dl --get-urls --http-timeout 10 --range 1-15 "https://www.pinterest.com/search/pins/?q=<关键词2>"
 ```
 
 **参数说明**：
 - `--get-urls`：只获取图片 URL，不下载
-- `--http-timeout 10`：HTTP 连接超时 10 秒，防止 Pinterest 无响应时挂起
-- `--range 1-20`：限制获取前 20 条，避免无限滚动
-- 输出为每行一个图片 URL
+- `--http-timeout 10`：HTTP 连接超时 10 秒
+- `--range 1-15`：每次获取 15 条，2 次共约 30 条
 
-**数据清洗**：
-- 跳过 `.heic` 格式（浏览器不支持）
+**步骤 2.3：汇总去重**
+
+- 合并 2 次搜索的 URL 列表
+- 按 URL 去重
+- 过滤 `.heic` 格式（浏览器不支持）
 - 仅保留 `.jpg`、`.png`、`.jpeg` 格式
-
-**示例**：
-```bash
-gallery-dl --get-urls --http-timeout 10 --range 1-20 "https://www.pinterest.com/search/pins/?q=风景"
-```
+- 最终保留 15-20 张图片
 
 ### Phase 3: 生成数据文件
 
-将获取到的图片 URL 列表转换为 JavaScript 格式，写入数据文件：
+将汇总去重后的图片 URL 列表转换为 JavaScript 格式，写入数据文件：
 
 **文件路径**：`<skill-dir>/pp-data.js`
 
@@ -61,7 +82,7 @@ window.PP_IMAGES = [
 
 **注意**：
 - `alt` 字段可以是图片描述或留空字符串
-- 建议生成 10-20 张图片
+- 最终生成 15-20 张图片
 
 ### Phase 4: 展示画廊
 
@@ -119,21 +140,39 @@ skills/pp/
 ## 📝 使用示例
 
 **用户输入**：
-> 帮我搜索一些猫咪的图片
+> 帮我搜索一些成都美食的图片
 
 **Agent 执行步骤**：
 
 1. 检查 gallery-dl 是否安装
-2. 执行搜索：
+
+2. 理解意图并构造搜索词：
+   - 用户想要：成都美食
+   - 构造搜索词：`["Chengdu food", "Sichuan street food"]`
+
+3. 执行第一次搜索：
    ```bash
-   gallery-dl --get-urls --http-timeout 10 --range 1-20 "https://www.pinterest.com/search/pins/?q=猫咪"
+   gallery-dl --get-urls --http-timeout 10 --range 1-15 "https://www.pinterest.com/search/pins/?q=Chengdu food"
    ```
-3. 解析输出，过滤掉 `.heic` 格式，生成 pp-data.js
-4. 在浏览器中打开 index.html
-5. 回复用户：
+
+4. 执行第二次搜索：
+   ```bash
+   gallery-dl --get-urls --http-timeout 10 --range 1-15 "https://www.pinterest.com/search/pins/?q=Sichuan street food"
+   ```
+
+5. 汇总去重：
+   - 合并 2 次搜索的 URL
+   - 去重、过滤 .heic 格式
+   - 保留 15-20 张图片
+
+6. 生成 pp-data.js
+
+7. 在浏览器中打开 index.html
+
+8. 回复用户：
    > 🖼️ **画廊已为您打开，请您欣赏~**
    >
-   > 已为您准备好 **猫咪** 的精选美图 🐱✨
+   > 已为您准备好 **成都美食** 的精选美图 🍜✨
    >
    > 💡 **小贴士**：
    > - 点击任意图片可进入全屏查看模式
