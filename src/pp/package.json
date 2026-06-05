@@ -1,0 +1,25 @@
+{
+  "name": "pp-src",
+  "version": "1.0.0",
+  "private": true,
+  "description": "pp 技能 - Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js）",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "viewerjs": "^1.11.7",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "typescript": "^5.4.0",
+    "unocss": "^66.6.8",
+    "vite": "^8.0.0",
+    "vite-plugin-singlefile": "^2.3.3"
+  }
+}
