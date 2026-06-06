@@ -1,7 +1,21 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import { copyFileSync, existsSync } from 'node:fs';
 
 export default defineConfig({
+  plugins: [
+    {
+      name: 'copy-skill-md',
+      writeBundle() {
+        const src = resolve(__dirname, 'SKILL.md');
+        const dest = resolve(__dirname, '../../skills/hq/SKILL.md');
+        if (existsSync(src)) {
+          copyFileSync(src, dest);
+          console.log('📋 已拷贝 SKILL.md → skills/hq/SKILL.md');
+        }
+      },
+    },
+  ],
   build: {
     ssr: true,
     lib: {
