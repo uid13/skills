@@ -15,6 +15,24 @@ export default defineConfig({
         }
       },
     },
+    {
+      name: 'copy-public',
+      writeBundle() {
+        const srcDir = resolve(__dirname, 'public');
+        const destDir = resolve(__dirname, '../../skills/hq');
+        if (existsSync(srcDir)) {
+          const files = readdirSync(srcDir);
+          for (const file of files) {
+            const srcFile = resolve(srcDir, file);
+            const destFile = resolve(destDir, file);
+            if (statSync(srcFile).isFile()) {
+              copyFileSync(srcFile, destFile);
+              console.log(`📄 已拷贝 ${file} → skills/hq/${file}`);
+            }
+          }
+        }
+      },
+    },
   ],
   build: {
     ssr: true,
@@ -39,3 +57,5 @@ export default defineConfig({
     noExternal: true,
   },
 });
+import { readdirSync, statSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
