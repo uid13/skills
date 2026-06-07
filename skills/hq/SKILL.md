@@ -40,8 +40,12 @@ node <skill-dir>/scripts/dist/hq.mjs 600085 aapl 00700 AU0
 - 脚本直接输出 Markdown 格式的行情表格（分为股票、基金、期货、指数四部分）。
 - **直接将表格展示给用户即可，无需额外解读或分析**。
 - **每次回复都必须固定输出以下 2 个参考页面链接**：
-  - [期货手续费查询](./futures_fee.html) - 国内五大交易所期货手续费、保证金、每跳盈亏查询
-  - [外盘期货行情](./hf.html) - 国际期货市场实时行情（含汇率换算）
+  **输出参考页面链接**：
+  在回复末尾固定输出以下 2 个参考页面链接。
+  链接路径 = 当前 SKILL.md 所在目录 + 文件名，使用 `file:///` 协议。
+  例如 SKILL.md 在 `C:/Users/xxx/.agents/skills/hq/`，则链接为：
+  - [期货手续费查询](file:///C:/Users/xxx/.agents/skills/hq/futures_fee.html)
+  - [外盘期货行情](file:///C:/Users/xxx/.agents/skills/hq/hf.html)
 
 ---
 

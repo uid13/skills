@@ -1,39 +1,10 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'node:path';
-import { copyFileSync, existsSync } from 'node:fs';
+import { defineConfig } from 'vite'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig({
-  plugins: [
-    {
-      name: 'copy-skill-md',
-      writeBundle() {
-        const src = resolve(__dirname, 'SKILL.md');
-        const dest = resolve(__dirname, '../../skills/hq/SKILL.md');
-        if (existsSync(src)) {
-          copyFileSync(src, dest);
-          console.log('📋 已拷贝 SKILL.md → skills/hq/SKILL.md');
-        }
-      },
-    },
-    {
-      name: 'copy-public',
-      writeBundle() {
-        const srcDir = resolve(__dirname, 'public');
-        const destDir = resolve(__dirname, '../../skills/hq');
-        if (existsSync(srcDir)) {
-          const files = readdirSync(srcDir);
-          for (const file of files) {
-            const srcFile = resolve(srcDir, file);
-            const destFile = resolve(destDir, file);
-            if (statSync(srcFile).isFile()) {
-              copyFileSync(srcFile, destFile);
-              console.log(`📄 已拷贝 ${file} → skills/hq/${file}`);
-            }
-          }
-        }
-      },
-    },
-  ],
   build: {
     ssr: true,
     lib: {
@@ -41,21 +12,25 @@ export default defineConfig({
       formats: ['es'],
       fileName: 'hq',
     },
-    outDir: resolve(__dirname, '../../skills/hq/scripts/dist'),
+    outDir: resolve(__dirname, '../../skills/hq'),
     emptyOutDir: true,
     sourcemap: true,
     minify: false,
     rollupOptions: {
       external: [/^node:/],
       output: {
-        entryFileNames: '[name].mjs',
-        chunkFileNames: 'chunks/[name]-[hash].mjs',
+        entryFileNames: 'scripts/dist/[name].mjs',
+        chunkFileNames: 'scripts/dist/chunks/[name]-[hash].mjs',
       },
     },
   },
   ssr: {
     noExternal: true,
   },
-});
-import { readdirSync, statSync } from 'node:fs';
-import { mkdirSync } from 'node:fs';
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
+  publicDir: resolve(__dirname, 'public'),
+})

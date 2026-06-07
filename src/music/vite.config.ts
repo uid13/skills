@@ -1,14 +1,9 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'node:path';
-import { copyFileSync, existsSync } from 'node:fs';
+import { defineConfig } from 'vite'
+import { resolve, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-/**
- * Vite 8 + Rolldown 构建配置（music 技能）
- *
- * - ssr: true（externalize node: 内置模块）
- * - ssr.noExternal: commander 内联打包
- * - 输出到 skills/music/scripts/dist/
- */
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
 export default defineConfig({
   build: {
     ssr: true,
@@ -17,37 +12,25 @@ export default defineConfig({
       formats: ['es'],
       fileName: 'music',
     },
-    outDir: resolve(__dirname, '../../skills/music/scripts/dist'),
+    outDir: resolve(__dirname, '../../skills/music'),
     emptyOutDir: true,
     sourcemap: true,
     minify: false,
-    rolldownOptions: {
+    rollupOptions: {
       external: [/^node:/],
       output: {
-        entryFileNames: '[name].mjs',
-        chunkFileNames: 'chunks/[name]-[hash].mjs',
+        entryFileNames: 'scripts/dist/[name].mjs',
+        chunkFileNames: 'scripts/dist/chunks/[name]-[hash].mjs',
       },
     },
   },
   ssr: {
-    noExternal: true,  // 打包所有依赖（包括 cross-spawn 的子依赖 which 等）
+    noExternal: true,
   },
-  plugins: [
-    {
-      name: 'copy-skill-md',
-      writeBundle() {
-        const src = resolve(__dirname, 'SKILL.md');
-        const dest = resolve(__dirname, '../../skills/music/SKILL.md');
-        if (existsSync(src)) {
-          copyFileSync(src, dest);
-          console.log('📋 已拷贝 SKILL.md → skills/music/SKILL.md');
-        }
-      },
-    },
-  ],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
     },
   },
-});
+  publicDir: resolve(__dirname, 'public'),
+})
