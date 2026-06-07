@@ -44,39 +44,50 @@ skills-uid13/
 │   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
 │   │   └── package.json
 │   ├── music/                     # 音乐播放技能（代码型，TypeScript）
+│   │   ├── public/                # 技能文档目录
+│   │   │   └── SKILL.md           # 技能入口文档
 │   │   ├── src/bin/               # CLI 入口（music.ts - IPC 控制）
 │   │   ├── src/lib/               # 工具库（mpv.ts - IPC 通信）
 │   │   └── vite.config.ts
 │   ├── hq/                        # 行情查询技能（代码型，TypeScript）
+│   │   ├── public/                # 技能文档 + 参考页面
+│   │   │   ├── SKILL.md           # 技能入口文档
+│   │   │   ├── futures_fee.html   # 期货手续费查询页面
+│   │   │   ── hf.html            # 外盘期货行情页面
 │   │   ├── src/bin/               # CLI 入口（hq.ts）
 │   │   ├── src/lib/               # 工具库（parser.ts, sina.ts, types.ts）
 │   │   └── vite.config.ts
 │   └── pp/                        # 图片画廊技能（网页型，Vue 3 + UnoCSS）
+│       ├── public/                # 运行时资源
+│       │   ├── SKILL.md           # 技能入口文档
+│       │   ├── icons/             # SVG 图标
+│       │   └── pp-data.js         # 图片数据（运行时由 Agent 写入）
 │       ├── src/                   # Vue 源码（App.vue, Gallery.vue）
-│       ├── public/                # 运行时资源（pp-data.js, icons/）
 │       ├── index.html             # HTML 入口
-│       └── vite.config.ts         # Vite + singlefile 配置
+│       ── vite.config.ts         # Vite + singlefile 配置
 │
 ├── skills/                        # 构建产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
-│   │   ├── SKILL.md               # 技能入口文档
-│   │   ├── references/            # 参考文档
-│   │   └── fonts/                 # 内置字体
+│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
+│   │   ├── references/            # 参考文档（从 public/ 复制）
+│   │   └── fonts/                 # 内置字体（从 public/ 复制）
 │   ├── music/
-│   │   ├── SKILL.md
+│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
 │   │   └── scripts/dist/
 │   ├── hq/
-│   │   ├── SKILL.md
+│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
+│   │   ├── futures_fee.html       # 参考页面（从 public/ 复制）
+│   │   ├── hf.html                # 参考页面（从 public/ 复制）
 │   │   └── scripts/dist/
 │   └── pp/
-│       ├── SKILL.md
+│       ├── SKILL.md               # 技能入口文档（从 public/ 复制）
 │       ├── index.html             # 单文件构建产物（JS/CSS 全部内联）
-│       ├── icons/
-│       └── pp-data.js
+│       ├── icons/                 # SVG 图标（从 public/ 复制）
+│       └── pp-data.js             # 图片数据（从 public/ 复制）
 │
 ├── AGENTS.md                      # AI 编码助手协作指南
 ├── package.json                   # Monorepo 根配置
-└── tsconfig.json                  # TypeScript 根配置
+── tsconfig.json                  # TypeScript 根配置
 ```
 
 **用户视角**：只需关心 `skills/` 目录。

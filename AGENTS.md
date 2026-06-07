@@ -35,28 +35,35 @@ skills-uid13/
 │   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
 │   │   └── package.json           # 模块级配置
 │   ├── music/                     # 音乐播放技能（代码型，TypeScript）
+│   │   ├── public/                # 技能文档目录
+│   │   │   └── SKILL.md           # 技能入口文档
 │   │   ├── src/bin/               # CLI 入口（music）
 │   │   ├── src/lib/               # 工具库（mpv IPC 控制）
 │   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
 │   │   ├── tsconfig.json          # 模块级 TS 配置
 │   │   └── package.json           # 模块级依赖与构建脚本
 │   ├── hq/                        # 行情查询技能（代码型，TypeScript）
+│   │   ├── public/                # 技能文档 + 参考页面
+│   │   │   ├── SKILL.md           # 技能入口文档
+│   │   │   ├── futures_fee.html   # 期货手续费查询页面
+│   │   │   └── hf.html            # 外盘期货行情页面
 │   │   ├── src/bin/               # CLI 入口（hq）
 │   │   ├── src/lib/               # 工具库（行情解析、HTTP 请求）
 │   │   ├── vite.config.ts         # Vite 8 (Rolldown) 编译配置
 │   │   ├── tsconfig.json          # 模块级 TS 配置
 │   │   └── package.json           # 模块级依赖与构建脚本
 │   └── pp/                        # 图片画廊技能（网页型，Vue 3 + UnoCSS）
+│       ├── public/                # 运行时资源（构建时复制到 skills/）
+│       │   ├── SKILL.md           # 技能入口文档
+│       │   ├── icons/             # SVG 图标
+│       │   ── pp-data.js         # 图片数据（运行时由 Agent 写入）
 │       ├── src/                   # Vue 源码
 │       │   ├── App.vue            # 主组件（随机渐变背景）
 │       │   ├── components/        # 组件目录
 │       │   │   └── Gallery.vue    # 画廊组件（瀑布流 + Viewer.js）
 │       │   ├── types/             # TypeScript 类型定义
 │       │   ├── main.ts            # Vue 应用入口
-│       │   └── env.d.ts           # 环境类型声明
-│       ├── public/                # 运行时资源（构建时复制到 skills/）
-│       │   ├── icons/             # SVG 图标
-│       │   └── pp-data.js         # 图片数据（运行时由 Agent 写入）
+│       │   ── env.d.ts           # 环境类型声明
 │       ├── index.html             # HTML 入口
 │       ├── vite.config.ts         # Vite + singlefile 配置
 │       ├── uno.config.ts          # UnoCSS 配置
@@ -65,21 +72,22 @@ skills-uid13/
 │
 ├── skills/                        # 输出产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
-│   │   ├── SKILL.md               # 技能入口文档
-│   │   ├── references/            # 按需加载的参考文档
-│   │   ├── fonts/                 # 内置字体文件
-│   │   └── scripts/dummy.js       # 占位文件（Vite 构建产物）
+│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
+│   │   ├── references/            # 按需加载的参考文档（从 public/ 复制）
+│   │   ── fonts/                 # 内置字体文件（从 public/ 复制）
 │   ├── music/
-│   │   ├── SKILL.md
+│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
 │   │   └── scripts/dist/          # 编译后的 .mjs 文件
 │   ├── hq/
-│   │   ├── SKILL.md
+│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
+│   │   ├── futures_fee.html       # 参考页面（从 public/ 复制）
+│   │   ├── hf.html                # 参考页面（从 public/ 复制）
 │   │   └── scripts/dist/          # 编译后的 .mjs 文件
 │   └── pp/
-│       ├── SKILL.md               # 技能入口文档
+│       ├── SKILL.md               # 技能入口文档（从 public/ 复制）
 │       ├── index.html             # 单文件构建产物（JS/CSS 全部内联）
-│       ├── icons/                 # SVG 图标
-│       └── pp-data.js             # 图片数据（运行时由 Agent 写入）
+│       ├── icons/                 # SVG 图标（从 public/ 复制）
+│       └── pp-data.js             # 图片数据（从 public/ 复制）
 │
 ├── package.json                   # Monorepo 根配置（workspaces）
 ├── tsconfig.json                  # 根 TypeScript 配置
@@ -203,7 +211,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 1. 进入 `src/<skill-name>/public/` 目录
 2. 修改 SKILL.md 或 references/ 下的文档
 3. 如需添加字体或其他资源，放入 public/ 对应子目录
-4. 运行 `npm run build` 构建（会复制 public/ 内容到 skills/）
+4. 运行 `npm run build` 构建（Vite 自动复制 public/ 内容到 skills/）
 5. 验证 `skills/<skill-name>/` 下的产物已更新
 
 ### 修改网页型技能（如 pp）
@@ -248,7 +256,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
    # ... 配置 vite.config.ts、tsconfig.json
    ```
 
-2. 在 `skills/<new-skill>/` 准备 SKILL.md 和 references
+2. 创建 `public/` 目录并放置 SKILL.md
 
 3. 根 package.json 的 workspaces 会自动识别
 
@@ -350,7 +358,7 @@ export async function detectFonts(): Promise<FontInfo[]> {
 
 4. 创建 `index.html`、`src/main.ts`、`src/App.vue` 等 Vue 文件
 
-5. 在 `public/` 下放置运行时资源（如数据文件、图标等）
+5. 在 `public/` 下放置 SKILL.md 和运行时资源（如数据文件、图标等）
 
 ### 提交前检查
 
@@ -374,17 +382,17 @@ npm run test
 | `package.json` | Monorepo 根配置 |
 | `tsconfig.json` | TypeScript 根配置（noEmit=true，仅用于类型检查） |
 | `src/*/vite.config.ts` | 各技能的 Vite 配置 |
-| `src/*/public/` | 资源型/网页型技能的资源目录（构建时复制到 skills/） |
+| `src/*/public/` | 技能资源目录（构建时自动复制到 skills/） |
 | `skills/*/SKILL.md` | 技能入口文档（符合 Agent Skills 规范） |
-| `skills/*/references/` | 按需加载的参考文档（由构建从 src 复制） |
-| `skills/*/fonts/` | 内置字体文件（由构建从 src 复制） |
+| `skills/*/references/` | 按需加载的参考文档（由构建从 src/public/ 复制） |
+| `skills/*/fonts/` | 内置字体文件（由构建从 src/public/ 复制） |
 | `skills/pp/index.html` | 网页型技能的单文件构建产物 |
 
 ## 重要警告
 
-⚠️ **不要**手动修改 `skills/*/scripts/` 目录下的文件，它们都是构建产物
+️ **不要**手动修改 `skills/*/scripts/` 目录下的文件，它们都是构建产物
 ⚠️ **不要**在 `skills/*/SKILL.md` 里堆砌代码和配方，那是按职责分层后由 AI 动态加载的
-⚠️ **不要**把 npm 包作为运行时依赖添加到资源型技能中
+️ **不要**把 npm 包作为运行时依赖添加到资源型技能中
 ⚠️ **不要**删除 `src/dummy.js`，Vite 构建需要至少一个入口文件
 ⚠️ **不要**手动修改 `skills/pp/index.html`，它是 Vite 构建产物
 
