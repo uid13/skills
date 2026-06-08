@@ -39,23 +39,23 @@ node <skill-dir>/scripts/dist/hq.mjs 600085 aapl 00700 AU0
 ### 4. 结果解读与输出
 - 脚本直接输出 Markdown 格式的行情表格（分为股票、基金、期货、指数四部分）。
 - **直接将表格展示给用户即可，无需额外解读或分析**。
-- **打开参考页面**：
-  使用内置的 `serve.mjs` 启动本地 HTTP 服务器，然后在浏览器中打开参考页面。
+- **启动本地服务并输出链接**：
+  1. 检查端口 5168 是否已有服务在运行：
+     - 尝试请求 `http://localhost:5168/chart-line.svg`
+     - 如果返回 200，说明服务已在运行，跳过启动步骤
+     - 如果请求失败，执行下一步启动服务
+  2. 启动服务（仅在未运行时）：
+     ```bash
+     cd <skill-dir>
+     npx -y vite@8.0.0 --config vite.config.mjs --port 5168
+     ```
+  3. 在行情表格后直接输出以下 2 个链接（不要加"参考页面"等标题）：
+     - [外盘期货行情](http://localhost:5168/hf.html)
+     - [期货手续费查询](http://localhost:5168/futures_fee.html)
 
-  **步骤**：
-  1. 检查服务是否已在运行：`node <skill-dir>/scripts/dist/serve.mjs status`
-  2. 如果未运行，启动服务：`node <skill-dir>/scripts/dist/serve.mjs start -d <skill-dir>`
-  3. 打开参考页面（根据当前操作系统选择合适的命令）：
-     - Windows cmd：`start http://localhost:3000/hf.html`
-     - Windows PowerShell：`Invoke-Item http://localhost:3000/hf.html`
-     - macOS：`open http://localhost:3000/hf.html`
-     - Linux：`xdg-open http://localhost:3000/hf.html`
-
-  **注意**：
-  - `serve.mjs` 是零依赖的静态文件服务器，已内置在技能中
-  - 如果端口 3000 被占用，服务会自动提示并退出
-  - 用户无需手动停止服务，服务会持续运行直到手动停止
-  - 停止服务：`node <skill-dir>/scripts/dist/serve.mjs stop`
+  **说明**：
+  - `vite.config.mjs` 已内置在技能目录中，包含 API 代理配置
+  - 停止服务：`Ctrl + C`
 
 ---
 

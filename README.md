@@ -16,7 +16,7 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 |------|------|------|------|
 | **imagegen-magick** | 资源型 | 程序化图像生成（文档 + 内置字体 + Iconify 图标） | 纯资源，Vite public 构建 |
 | **music** | 代码型 | 在线音乐播放（模型调用 yt-dlp/mpv，music.mjs 仅 IPC 控制） | 已简化 |
-| **hq** | 代码型 | 股票/基金/期货/指数实时行情查询（新浪接口，GBK 转码） | 已上线 |
+| **hq** | 代码型 | 股票/基金/期货/指数实时行情查询（新浪接口，Vite 代理解决 CORS） | 已上线 |
 | **pp** | 网页型 | Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML） | 已上线 |
 
 ## 安装
@@ -60,7 +60,7 @@ skills-uid13/
 - Node.js >= 22, npm >= 10, Git
 - **imagegen-magick**: [ImageMagick 7+](https://imagemagick.org/script/download.php)
 - **music**: [mpv](https://mpv.io/) + [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- **hq**: 无额外依赖（Node.js 即可）
+- **hq**: 无额外依赖（Node.js 即可，参考页面需 `npx vite` 启动本地代理）
 - **pp**: [gallery-dl](https://github.com/mikf/gallery-dl/releases)（Pinterest 图片 URL 获取）
 
 ### 安装与运行

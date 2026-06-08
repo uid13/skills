@@ -38,7 +38,7 @@
 </div>
 
 <script>
-const PROXY_PREFIX = 'https://dry-poetry-542e.email-lifeng.workers.dev/?url=';
+const PROXY_PREFIX = '';
 
 // 外盘期货品种代码列表
 const SYMBOLS = [
@@ -64,9 +64,9 @@ let usdJpyRate = 0;
 // 获取汇率
 function fetchRates() {
   return new Promise((resolve, reject) => {
-    const targetUrl = 'http://hq.sinajs.cn/list=USDCNY,USDJPY';
+    const targetUrl = '/hq/list=USDCNY,USDJPY';
     $.ajax({
-      url: PROXY_PREFIX + encodeURIComponent(targetUrl),
+      url: targetUrl,
       type: 'GET',
       dataType: 'text',
       success: function(data) {
@@ -185,10 +185,10 @@ function loadData() {
 
   fetchRates().then(function() {
     const symbolList = SYMBOLS.map(s => 'hf_' + s).join(',');
-    const targetUrl = 'http://hq.sinajs.cn/list=' + symbolList;
+    const targetUrl = '/hq/list=' + symbolList;
 
     $.ajax({
-      url: PROXY_PREFIX + encodeURIComponent(targetUrl),
+      url: targetUrl,
       type: 'GET',
       dataType: 'text',
       success: function(data) {
@@ -205,10 +205,10 @@ function loadData() {
     $('#usdJpyRate').text('获取失败');
 
     const symbolList = SYMBOLS.map(s => 'hf_' + s).join(',');
-    const targetUrl = 'http://hq.sinajs.cn/list=' + symbolList;
+    const targetUrl = '/hq/list=' + symbolList;
 
     $.ajax({
-      url: PROXY_PREFIX + encodeURIComponent(targetUrl),
+      url: targetUrl,
       type: 'GET',
       dataType: 'text',
       success: function(data) {

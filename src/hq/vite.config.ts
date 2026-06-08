@@ -8,10 +8,7 @@ export default defineConfig({
   build: {
     ssr: true,
     lib: {
-      entry: {
-        hq: resolve(__dirname, 'src/bin/hq.ts'),
-        serve: resolve(__dirname, 'src/bin/serve.mjs'),
-      },
+      entry: resolve(__dirname, 'src/bin/hq.ts'),
       formats: ['es'],
     },
     outDir: resolve(__dirname, '../../skills/hq'),

@@ -50,7 +50,7 @@
 </div>
 
 <script>
-const PROXY_PREFIX = 'https://dry-poetry-542e.email-lifeng.workers.dev/?url=';
+const PROXY_PREFIX = '';
 
 function parseSinaTable(html) {
   const $doc = $(html);
@@ -82,9 +82,9 @@ function renderTable(exchange, isMain) {
   $('#updateTime').text('');
   $('#countBar').text('');
 
-  const targetUrl = 'https://vip.stock.finance.sina.com.cn/q/view/vPositions_fee.php?exchange=' + exchange + '&is_main=' + (isMain ? 1 : 0);
+  const targetUrl = '/finance/q/view/vPositions_fee.php?exchange=' + exchange + '&is_main=' + (isMain ? 1 : 0);
   $.ajax({
-    url: PROXY_PREFIX + encodeURIComponent(targetUrl),
+    url: targetUrl,
     type: 'GET',
     dataType: 'html',
     success: function(html) {
@@ -114,7 +114,7 @@ function renderTable(exchange, isMain) {
         const marginPct1 = row[2], marginPct2 = row[3], marginAmt = row[4];
         const feeOpen = row[5], feeCloseYesterday = row[6], feeCloseToday = row[7];
         const tickProfit = row[8], feeTotal = row[9], tickNet = row[10];
-        
+
         var netClass = '';
         const netVal = parseFloat(tickNet);
         if (netVal > 0) netClass = 'profit';
