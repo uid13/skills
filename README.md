@@ -33,65 +33,25 @@ npx skills add https://github.com/uid13/skills.git --skill imagegen-magick
 
 ```
 skills-uid13/
-├── src/                           # 源码
+── src/                           # 源码（各技能独立开发指南见 src/<skill>/AGENTS.md）
 │   ├── imagegen-magick/           # 图像生成技能（资源型）
-│   │   ├── public/                # 资源目录（构建时复制到 skills/）
-│   │   │   ├── fonts/             # 内置字体
-│   │   │   ├── references/        # 参考文档
-│   │   │   └── SKILL.md           # 技能入口文档
-│   │   ├── src/                   # Vite 构建入口
-│   │   │   └── dummy.js           # 占位文件
-│   │   ├── vite.config.ts         # Vite 配置（publicDir 机制）
-│   │   └── package.json
-│   ├── music/                     # 音乐播放技能（代码型，TypeScript）
-│   │   ├── public/                # 技能文档目录
-│   │   │   └── SKILL.md           # 技能入口文档
-│   │   ├── src/bin/               # CLI 入口（music.ts - IPC 控制）
-│   │   ├── src/lib/               # 工具库（mpv.ts - IPC 通信）
-│   │   └── vite.config.ts
-│   ├── hq/                        # 行情查询技能（代码型，TypeScript）
-│   │   ├── public/                # 技能文档 + 参考页面
-│   │   │   ├── SKILL.md           # 技能入口文档
-│   │   │   ├── futures_fee.html   # 期货手续费查询页面
-│   │   │   ── hf.html            # 外盘期货行情页面
-│   │   ├── src/bin/               # CLI 入口（hq.ts）
-│   │   ├── src/lib/               # 工具库（parser.ts, sina.ts, types.ts）
-│   │   └── vite.config.ts
-│   └── pp/                        # 图片画廊技能（网页型，Vue 3 + UnoCSS）
-│       ├── public/                # 运行时资源
-│       │   ├── SKILL.md           # 技能入口文档
-│       │   ├── icons/             # SVG 图标
-│       │   └── pp-data.js         # 图片数据（运行时由 Agent 写入）
-│       ├── src/                   # Vue 源码（App.vue, Gallery.vue）
-│       ├── index.html             # HTML 入口
-│       ── vite.config.ts         # Vite + singlefile 配置
+│   ├── music/                     # 音乐播放技能（代码型）
+│   ├── hq/                        # 行情查询技能（代码型）
+│   └── pp/                        # 图片画廊技能（网页型）
 │
 ├── skills/                        # 构建产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
-│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
-│   │   ├── references/            # 参考文档（从 public/ 复制）
-│   │   └── fonts/                 # 内置字体（从 public/ 复制）
 │   ├── music/
-│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
-│   │   └── scripts/dist/
 │   ├── hq/
-│   │   ├── SKILL.md               # 技能入口文档（从 public/ 复制）
-│   │   ├── futures_fee.html       # 参考页面（从 public/ 复制）
-│   │   ├── hf.html                # 参考页面（从 public/ 复制）
-│   │   └── scripts/dist/
 │   └── pp/
-│       ├── SKILL.md               # 技能入口文档（从 public/ 复制）
-│       ├── index.html             # 单文件构建产物（JS/CSS 全部内联）
-│       ├── icons/                 # SVG 图标（从 public/ 复制）
-│       └── pp-data.js             # 图片数据（从 public/ 复制）
 │
-├── AGENTS.md                      # AI 编码助手协作指南
+├── AGENTS.md                      # 项目级 AI 编码指南
 ├── package.json                   # Monorepo 根配置
 ── tsconfig.json                  # TypeScript 根配置
 ```
 
 **用户视角**：只需关心 `skills/` 目录。
-**开发者视角**：源码在 `src/`，构建输出到 `skills/`。
+**开发者视角**：源码在 `src/`，构建输出到 `skills/`。各技能开发指南见 `src/<skill>/AGENTS.md`。
 
 ## 开发环境
 
@@ -132,21 +92,6 @@ npm -w pp-src dev                  # 监听图片画廊技能
 ## 贡献
 
 欢迎提 Issue 和 PR。开发前请先阅读 [AGENTS.md](./AGENTS.md) 了解协作规范。
-
-### 核心规范
-
-- **中文注释**：所有代码（函数、类、常量、关键逻辑）都需中文注释
-- **跨平台**：同时支持 Windows / macOS / Linux
-- **零安装分发**：用户拿到技能后无需 `npm install` 即可使用
-- **ESM only**：代码型技能的输出产物为 `.mjs` 格式
-
-### 代码提交流程
-
-```bash
-npm run build
-git add skills/
-git commit -m "feat(imagegen): add new feature"
-```
 
 ## 许可证
 
