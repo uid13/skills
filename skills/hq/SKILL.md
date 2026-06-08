@@ -39,13 +39,23 @@ node <skill-dir>/scripts/dist/hq.mjs 600085 aapl 00700 AU0
 ### 4. 结果解读与输出
 - 脚本直接输出 Markdown 格式的行情表格（分为股票、基金、期货、指数四部分）。
 - **直接将表格展示给用户即可，无需额外解读或分析**。
-- **每次回复都必须固定输出以下 2 个参考页面链接**：
-  **输出参考页面链接**：
-  在回复末尾固定输出以下 2 个参考页面链接。
-  链接路径 = 当前 SKILL.md 所在目录 + 文件名，使用 `file:///` 协议。
-  例如 SKILL.md 在 `C:/Users/xxx/.agents/skills/hq/`，则链接为：
-  - [期货手续费查询](file:///C:/Users/xxx/.agents/skills/hq/futures_fee.html)
-  - [外盘期货行情](file:///C:/Users/xxx/.agents/skills/hq/hf.html)
+- **打开参考页面**：
+  使用内置的 `serve.mjs` 启动本地 HTTP 服务器，然后在浏览器中打开参考页面。
+
+  **步骤**：
+  1. 检查服务是否已在运行：`node <skill-dir>/scripts/dist/serve.mjs status`
+  2. 如果未运行，启动服务：`node <skill-dir>/scripts/dist/serve.mjs start -d <skill-dir>`
+  3. 打开参考页面（根据当前操作系统选择合适的命令）：
+     - Windows cmd：`start http://localhost:3000/hf.html`
+     - Windows PowerShell：`Invoke-Item http://localhost:3000/hf.html`
+     - macOS：`open http://localhost:3000/hf.html`
+     - Linux：`xdg-open http://localhost:3000/hf.html`
+
+  **注意**：
+  - `serve.mjs` 是零依赖的静态文件服务器，已内置在技能中
+  - 如果端口 3000 被占用，服务会自动提示并退出
+  - 用户无需手动停止服务，服务会持续运行直到手动停止
+  - 停止服务：`node <skill-dir>/scripts/dist/serve.mjs stop`
 
 ---
 

@@ -72,10 +72,10 @@ function fetchRates() {
       success: function(data) {
         const cnyMatch = data.match(/var hq_str_USDCNY="[^"]*?,([\d.]+),/);
         if (cnyMatch) usdCnyRate = parseFloat(cnyMatch[1]);
-        
+
         const jpyMatch = data.match(/var hq_str_USDJPY="[^"]*?,([\d.]+),/);
         if (jpyMatch) usdJpyRate = parseFloat(jpyMatch[1]);
-        
+
         $('#usdCnyRate').text(usdCnyRate);
         $('#usdJpyRate').text(usdJpyRate);
         resolve();
@@ -89,18 +89,18 @@ function fetchRates() {
 function parseSinaData(text) {
   const rows = [];
   const lines = text.split('\n');
-  
+
   for (const line of lines) {
     const match = line.match(/var hq_str_hf_(\w+)="([^"]*)"/);
     if (!match) continue;
-    
+
     const symbol = match[1];
     const dataStr = match[2];
     if (!dataStr) continue;
-    
+
     const fields = dataStr.split(',');
     if (fields.length < 13) continue;
-    
+
     const latestPrice = parseFloat(fields[0]) || 0;
     const bidPrice = fields[2] || '';
     const askPrice = fields[3] || '';
@@ -114,11 +114,11 @@ function parseSinaData(text) {
     const askVol = fields[11] || '';
     const quoteDate = fields[12] || '';
     const name = SYMBOL_NAMES[symbol] || fields[13] || symbol;
-    
+
     // 计算涨跌
     const changeAmount = latestPrice - prevSettle;
     const changePercent = prevSettle !== 0 ? (changeAmount / prevSettle * 100) : 0;
-    
+
     rows.push({
       name, symbol, latestPrice,
       changeAmount: changeAmount.toFixed(3),
@@ -127,7 +127,7 @@ function parseSinaData(text) {
       openInterest, bidPrice, askPrice, quoteTime: quoteDate + ' ' + quoteTime
     });
   }
-  
+
   return rows;
 }
 
@@ -137,7 +137,7 @@ function renderTable(rows) {
     $('#countBar').text('');
     return;
   }
-  
+
   $('#countBar').text('共 ' + rows.length + ' 个品种');
   $('#updateTime').text('更新时间：' + new Date().toLocaleTimeString('zh-CN'));
 
@@ -186,7 +186,7 @@ function loadData() {
   fetchRates().then(function() {
     const symbolList = SYMBOLS.map(s => 'hf_' + s).join(',');
     const targetUrl = 'http://hq.sinajs.cn/list=' + symbolList;
-    
+
     $.ajax({
       url: PROXY_PREFIX + encodeURIComponent(targetUrl),
       type: 'GET',
@@ -203,10 +203,10 @@ function loadData() {
   }).catch(function() {
     $('#usdCnyRate').text('获取失败');
     $('#usdJpyRate').text('获取失败');
-    
+
     const symbolList = SYMBOLS.map(s => 'hf_' + s).join(',');
     const targetUrl = 'http://hq.sinajs.cn/list=' + symbolList;
-    
+
     $.ajax({
       url: PROXY_PREFIX + encodeURIComponent(targetUrl),
       type: 'GET',
