@@ -50,8 +50,8 @@ node <skill-dir>/scripts/dist/hq.mjs 600085 aapl 00700 AU0
      npx -y vite@8.0.0 --config vite.config.mjs --port 5168
      ```
   3. 在行情表格后直接输出以下 2 个链接（不要加"参考页面"等标题）：
-     - [外盘期货行情](http://localhost:5168/hf.html)
-     - [期货手续费查询](http://localhost:5168/futures_fee.html)
+     - 📈 [外盘期货行情](http://localhost:5168/hf.html)
+     - 💰 [期货手续费查询](http://localhost:5168/futures_fee.html)
 
   **说明**：
   - `vite.config.mjs` 已内置在技能目录中，包含 API 代理配置
