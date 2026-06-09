@@ -44,18 +44,17 @@ node <skill-dir>/scripts/dist/hq.mjs 600085 aapl 00700 AU0
      - 尝试请求 `http://localhost:5168/chart-line.svg`
      - 如果返回 200，说明服务已在运行，跳过启动步骤
      - 如果请求失败，执行下一步启动服务
-  2. 启动服务（仅在未运行时）：
+  2. 启动服务（仅在未运行时）：**必须以后台方式启动**，确保服务在技能执行结束后仍然存活。
      ```bash
      cd <skill-dir>
      npx -y vite@8.0.0 --config vite.config.mjs --port 5168
      ```
-  3. 在行情表格后直接输出以下 2 个链接（不要加"参考页面"等标题）：
-     - 📈 [外盘期货行情](http://localhost:5168/hf.html)
-     - 💰 [期货手续费查询](http://localhost:5168/futures_fee.html)
+     等待约 3 秒让服务就绪
+  3. 在行情表格后直接输出以下链接：
+      -  [行情工具](http://localhost:5168/app.html)
 
   **说明**：
   - `vite.config.mjs` 已内置在技能目录中，包含 API 代理配置
-  - 停止服务：`Ctrl + C`
 
 ---
 
@@ -99,5 +98,4 @@ node <skill-dir>/scripts/dist/hq.mjs 600085 aapl 00700 AU0
 | SH000001 | 上证指数 | 3200.50 |  +15.20 | 🔴 +0.48% | 3210.00 | 3185.00 |
 
 ---
-📈 [外盘期货行情](http://localhost:5168/hf.html)
-💰 [期货手续费查询](http://localhost:5168/futures_fee.html)
+[行情工具](http://localhost:5168/app.html)
