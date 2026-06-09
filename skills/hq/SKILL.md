@@ -41,7 +41,7 @@ node <skill-dir>/scripts/dist/hq.mjs 600085 aapl 00700 AU0
 - **直接将表格展示给用户即可，无需额外解读或分析**。
 - **启动本地服务并输出链接**：
   1. 检查端口 5168 是否已有服务在运行：
-     - 执行探测命令：`node -e "fetch('http://localhost:5168/chart-line.svg').then(r=>{console.log(r.ok?'200':'fail');process.exit(r.ok?0:1)})"`
+     - 尝试请求 `http://localhost:5168/chart-line.svg`
      - 如果返回 200，说明服务已在运行，跳过启动步骤
      - 如果请求失败，执行下一步启动服务
   2. 启动服务（仅在未运行时）：**必须以后台方式启动**，确保服务在技能执行结束后仍然存活。
