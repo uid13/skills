@@ -46,41 +46,15 @@ skills-uid13/
 │   └── pp/
 │
 ├── AGENTS.md                      # 项目级 AI 编码指南
+├── CONTRIBUTING.md                # 贡献指南
+├── llms.txt                       # LLM 项目概览
+├── VERSION                        # 版本号
 ├── package.json                   # Monorepo 根配置
 ── tsconfig.json                  # TypeScript 根配置
 ```
 
 **用户视角**：只需关心 `skills/` 目录。
 **开发者视角**：源码在 `src/`，构建输出到 `skills/`。各技能开发指南见 `src/<skill>/AGENTS.md`。
-
-## 开发环境
-
-### 前置要求
-
-- Node.js >= 22, npm >= 10, Git
-- **imagegen-magick**: [ImageMagick 7+](https://imagemagick.org/script/download.php)
-- **music**: [mpv](https://mpv.io/) + [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-- **hq**: 无额外依赖（Node.js 即可，参考页面需 `npx vite` 启动本地代理）
-- **pp**: [gallery-dl](https://github.com/mikf/gallery-dl/releases)（Pinterest 图片 URL 获取）
-
-### 安装与运行
-
-```bash
-git clone https://github.com/uid13/skills.git
-cd skills
-npm install
-npm run build
-```
-
-### 开发模式
-
-```bash
-npm run dev                        # 监听所有技能
-npm -w imagegen-magick-src dev     # 监听资源型技能
-npm -w music-src dev               # 监听音乐播放技能
-npm -w hq-src dev                  # 监听行情查询技能
-npm -w pp-src dev                  # 监听图片画廊技能
-```
 
 ## 各技能文档
 
@@ -91,7 +65,7 @@ npm -w pp-src dev                  # 监听图片画廊技能
 
 ## 贡献
 
-欢迎提 Issue 和 PR。开发前请先阅读 [AGENTS.md](./AGENTS.md) 了解协作规范。
+欢迎提 Issue 和 PR。参与开发前请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 许可证
 
