@@ -24,7 +24,8 @@ skills/         # 构建产物（用户视角，零安装即可使用）
 ├── hq/         # 行情查询技能
 ├── imagegen-magick/  # 图像生成技能
 ├── music/      # 音乐播放技能
-└── pp/         # 图片画廊技能
+├── pp/         # 图片画廊技能
+└── wc/         # 词汇学习技能
 ```
 
 ### 开发模式
@@ -42,6 +43,7 @@ npm -w hq-src dev
 npm -w music-src dev
 npm -w pp-src dev
 npm -w imagegen-magick-src dev
+npm -w wc-src dev
 ```
 
 ## 编码规范
@@ -63,6 +65,7 @@ npm -w imagegen-magick-src dev
 - 图像生成：`src/imagegen-magick/AGENTS.md`
 - 音乐播放：`src/music/AGENTS.md`
 - 图片画廊：`src/pp/AGENTS.md`
+- 词汇学习：`src/wc/AGENTS.md`
 
 ### 关键原则
 

@@ -39,8 +39,8 @@ coverage/
 # ===== Vite 内部目录 =====
 /.vite-temp/
 
-# ===== 构建中间产物 =====
-src/music/skills/
+# ===== Serena MCP =====
+.serena/
 
 # ===== 说明 =====
 # skills/*/scripts/dist/ 目录是编译产物，需要提交到 git（供用户零安装使用），因此**不要**在这里忽略

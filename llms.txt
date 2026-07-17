@@ -6,7 +6,7 @@
 
 Monorepo 工程，使用 Vite 8（Rolldown）+ TypeScript 构建 4 个 Agent 技能。所有技能跨平台（Windows / macOS / Linux），零 npm 安装即可运行。
 
-技能类型：代码型（.mjs）、资源型（纯文档+字体）、网页型（单文件 HTML）。
+技能类型：代码型（.mjs）、资源型（纯文档+静态页面）、网页型（单文件 HTML）。
 
 ## 技能清单
 
@@ -14,6 +14,7 @@ Monorepo 工程，使用 Vite 8（Rolldown）+ TypeScript 构建 4 个 Agent 技
 - [imagegen-magick](/skills/imagegen-magick/SKILL.md) — 程序化图像生成（ImageMagick 7+，内置字体 + Iconify 图标）
 - [music](/skills/music/SKILL.md) — 在线音乐播放（yt-dlp + mpv IPC 控制）
 - [pp](/skills/pp/SKILL.md) — Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML）
+- [wc](/skills/wc/SKILL.md) — 英语单词分类语义学习（LLM 驱动 + 浏览器查看页）
 
 ## 关键文件
 

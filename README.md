@@ -18,6 +18,7 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 | **music** | 代码型 | 在线音乐播放（模型调用 yt-dlp/mpv，music.mjs 仅 IPC 控制） | 已简化 |
 | **hq** | 代码型 | 股票/基金/期货/指数实时行情查询（新浪接口，Vite 代理解决 CORS） | 已上线 |
 | **pp** | 网页型 | Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML） | 已上线 |
+| **wc** | 资源型 | 英语单词分类语义学习（LLM 驱动 + 浏览器查看页） | 待上线 |
 
 ## 安装
 
@@ -62,6 +63,7 @@ skills-uid13/
 - [music](./skills/music/SKILL.md) — 在线音乐播放（代码型技能）
 - [hq](./skills/hq/SKILL.md) — 实时行情查询（代码型技能）
 - [pp](./skills/pp/SKILL.md) — Pinterest 图片画廊（网页型技能）
+- [wc](./skills/wc/SKILL.md) — 英语单词分类语义学习（资源型技能）
 
 ## 贡献
 
