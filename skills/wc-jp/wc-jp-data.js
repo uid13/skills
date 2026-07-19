@@ -1,5 +1,27 @@
-// wc-jp-data.js — 运行时由 Agent 更新，初始占位
 window.__WC_DATA__ = {
-  category: '',
-  words: []
+  category: '水果 - 果物',
+  words: [
+    { emoji: '🍎', zh: '苹果', ja: '林檎（りんご）', accent: '[0]', ja_html: '<ruby>林<rt>りん</rt></ruby><ruby>檎<rt>ご</rt></ruby>' },
+    { emoji: '🍌', zh: '香蕉', ja: 'バナナ', accent: '[0]', ja_html: 'バナナ' },
+    { emoji: '🍊', zh: '橙子', ja: 'オレンジ', accent: '[0]', ja_html: 'オレンジ' },
+    { emoji: '🍇', zh: '葡萄', ja: '葡萄（ぶどう）', accent: '[0]', ja_html: '<ruby>葡<rt>ぶ</rt></ruby><ruby>萄<rt>どう</rt></ruby>' },
+    { emoji: '🍉', zh: '西瓜', ja: '西瓜（すいか）', accent: '[0]', ja_html: '<ruby>西<rt>すい</rt></ruby><ruby>瓜<rt>か</rt></ruby>' },
+    { emoji: '🍓', zh: '草莓', ja: '苺（いちご）', accent: '[0]', ja_html: '<ruby>苺<rt>いちご</rt></ruby>' },
+    { emoji: '🍑', zh: '桃子', ja: '桃（もも）', accent: '[1]', ja_html: '<ruby>桃<rt>もも</rt></ruby>' },
+    { emoji: '🍐', zh: '梨', ja: '梨（なし）', accent: '[2]', ja_html: '<ruby>梨<rt>なし</rt></ruby>' },
+    { emoji: '🍋', zh: '柠檬', ja: 'レモン', accent: '[0]', ja_html: 'レモン' },
+    { emoji: '🥝', zh: '猕猴桃', ja: 'キウイ', accent: '[0]', ja_html: 'キウイ' },
+    { emoji: '🥭', zh: '芒果', ja: 'マンゴー', accent: '[0]', ja_html: 'マンゴー' },
+    { emoji: '🍍', zh: '菠萝', ja: 'パイナップル', accent: '[0]', ja_html: 'パイナップル' },
+    { emoji: '🍒', zh: '樱桃', ja: '桜桃（さくらんぼ）', accent: '[3]', ja_html: '<ruby>桜桃<rt>さくらんぼ</rt></ruby>' },
+    { emoji: '🫐', zh: '蓝莓', ja: 'ブルーベリー', accent: '[3]', ja_html: 'ブルーベリー' },
+    { emoji: '🥑', zh: '牛油果', ja: 'アボカド', accent: '[0]', ja_html: 'アボカド' },
+    { emoji: '🍈', zh: '甜瓜', ja: 'メロン', accent: '[0]', ja_html: 'メロン' },
+    { emoji: '🥥', zh: '椰子', ja: '椰子（やし）', accent: '[1]', ja_html: '<ruby>椰<rt>や</rt></ruby><ruby>子<rt>し</rt></ruby>' },
+    { emoji: '🍅', zh: '番茄', ja: 'トマト', accent: '[0]', ja_html: 'トマト' },
+    { emoji: '🫒', zh: '橄榄', ja: 'オリーブ', accent: '[0]', ja_html: 'オリーブ' },
+    { emoji: '🍊', zh: '柚子', ja: '柚子（ゆず）', accent: '[0]', ja_html: '<ruby>柚子<rt>ゆず</rt></ruby>' },
+    { emoji: '🌰', zh: '栗子', ja: '栗（くり）', accent: '[2]', ja_html: '<ruby>栗<rt>くり</rt></ruby>' },
+    { emoji: '🍊', zh: '金橘', ja: '金柑（きんかん）', accent: '[0]', ja_html: '<ruby>金<rt>きん</rt></ruby><ruby>柑<rt>かん</rt></ruby>' },
+  ]
 }
