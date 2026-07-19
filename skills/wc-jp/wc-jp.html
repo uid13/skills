@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="https://api.iconify.design/twemoji/jp.svg">
+  <title>日本語語彙学習</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@unocss/runtime/uno.global.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #e8eaf6 0%, #c5cae9 50%, #7986cb 100%);
+    }
+    .container {
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    thead th {
+      background: linear-gradient(135deg, #5c6bc0 0%, #3949ab 100%);
+      color: white;
+    }
+    tbody tr:nth-child(even) {
+      background-color: rgba(92, 107, 192, 0.08);
+    }
+    tbody tr:hover {
+      background-color: rgba(92, 107, 192, 0.15);
+    }
+    ruby {
+      ruby-align: center;
+    }
+    ruby rt {
+      font-size: 0.7em;
+      color: #666;
+    }
+    @media print {
+      body { background: white; }
+      .container { box-shadow: none; }
+      .text-3xl { font-size: 24px; }
+    }
+  </style>
+</head>
+<body class="font-sans m-0 p-5 min-h-screen">
+  <div id="app" class="container max-w-6xl mx-auto p-6 rounded-xl">
+    <div v-if="data.category" class="text-center text-xl text-indigo-700 mb-6 font-bold">
+      {{ data.category }}
+    </div>
+    <table v-if="data.words.length > 0" class="w-full border-collapse rounded-lg overflow-hidden">
+      <thead>
+        <tr>
+          <th class="px-4 py-3 font-semibold text-center">图标</th>
+          <th class="px-4 py-3 font-semibold text-left">中文</th>
+          <th class="px-4 py-3 font-semibold text-left">日本語</th>
+          <th class="px-4 py-3 font-semibold text-center">アクセント</th>
+          <th class="px-4 py-3 font-semibold text-center">图标</th>
+          <th class="px-4 py-3 font-semibold text-left">中文</th>
+          <th class="px-4 py-3 font-semibold text-left">日本語</th>
+          <th class="px-4 py-3 font-semibold text-center">アクセント</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(pair, index) in wordPairs" :key="index" class="border-b border-gray-100 transition-colors">
+          <td class="px-4 py-3 text-center text-3xl w-16">{{ pair[0]?.emoji }}</td>
+          <td class="px-4 py-3 text-left text-gray-800">{{ pair[0]?.zh }}</td>
+          <td class="px-4 py-3 text-left text-gray-800" v-html="pair[0]?.ja_html || pair[0]?.ja"></td>
+          <td class="px-4 py-3 text-center text-sm text-gray-500">{{ pair[0]?.accent }}</td>
+          <td class="px-4 py-3 text-center text-3xl w-16">{{ pair[1]?.emoji }}</td>
+          <td class="px-4 py-3 text-left text-gray-800">{{ pair[1]?.zh }}</td>
+          <td class="px-4 py-3 text-left text-gray-800" v-html="pair[1]?.ja_html || pair[1]?.ja"></td>
+          <td class="px-4 py-3 text-center text-sm text-gray-500">{{ pair[1]?.accent }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div v-else class="text-center text-gray-400 py-10">
+      暂无词汇数据
+    </div>
+  </div>
+
+  <script src="./wc-jp-data.js"></script>
+  <script>
+    const { createApp, ref, computed } = Vue
+
+    createApp({
+      setup() {
+        const data = ref(window.__WC_DATA__ || { category: '', words: [] })
+
+        const wordPairs = computed(() => {
+          const pairs = []
+          for (let i = 0; i < data.value.words.length; i += 2) {
+            pairs.push([
+              data.value.words[i],
+              data.value.words[i + 1] || null
+            ])
+          }
+          return pairs
+        })
+
+        return { data, wordPairs }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>

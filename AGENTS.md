@@ -15,7 +15,7 @@
 
 技能类型：
 - **代码型技能**（music、hq）：TypeScript 开发，Vite SSR 编译为 `.mjs`
-- **资源型技能**（imagegen-magick、wc）：纯文档 + 静态页面，Vite publicDir 机制复制
+- **资源型技能**（imagegen-magick、wc、wc-jp）：纯文档 + 静态页面，Vite publicDir 机制复制
 - **网页型技能**（pp）：Vue 3 + UnoCSS，vite-plugin-singlefile 编译为单文件 HTML
 
 每个技能独立可用，跨平台（Windows / macOS / Linux），零 npm 安装即可运行。
@@ -62,7 +62,8 @@ npm run typecheck      # 类型检查（仅代码型技能）
 
 # 单个技能命令（需要 cd 到对应 src 目录）
 npm -w imagegen-magick-src build   # 编译图像生成技能（资源型）
-npm -w wc-src build                # 编译词汇学习技能（资源型）
+npm -w wc-src build                # 编译英语词汇学习技能（资源型）
+npm -w wc-jp-src build             # 编译日语词汇学习技能（资源型）
 npm -w music-src build             # 编译音乐播放技能
 npm -w hq-src build                # 编译行情查询技能
 npm -w pp-src build                # 编译图片画廊技能

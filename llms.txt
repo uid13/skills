@@ -15,6 +15,7 @@ Monorepo 工程，使用 Vite 8（Rolldown）+ TypeScript 构建 4 个 Agent 技
 - [music](/skills/music/SKILL.md) — 在线音乐播放（yt-dlp + mpv IPC 控制）
 - [pp](/skills/pp/SKILL.md) — Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML）
 - [wc](/skills/wc/SKILL.md) — 英语单词分类语义学习（LLM 驱动 + 浏览器查看页）
+- [wc-jp](/skills/wc-jp/SKILL.md) — 日语单词分类语义学习（LLM 驱动 + 浏览器查看页）
 
 ## 关键文件
 
