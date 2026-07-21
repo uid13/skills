@@ -12,13 +12,13 @@ CLI 入口 `hq.mjs` 接收行情代码参数，调用新浪接口，输出 Markd
 
 ```
 src/hq/
-├── public/                # 技能文档 + 参考页面（构建时复制到 skills/）
-│   ├── SKILL.md           # 技能入口文档
-│   ├── futures_fee.html   # 期货手续费查询页面
-│   ├── hf.html            # 外盘期货行情页面
-│   ├── chart-line.svg     # hf.html 图标
-│   ├── receipt.svg        # futures_fee.html 图标
-│   └── vite.config.mjs    # Vite 开发服务器配置（API 代理）
+    ├── public/                # 技能文档 + 参考页面（构建时复制到 skills/）
+    │   ├── SKILL.md           # 技能入口文档
+    │   ├── futures_fee.html   # 期货手续费查询页面
+    │   ├── hf.html            # 外盘期货行情页面
+    │   ├── chart-line.svg     # hf.html 图标
+    │   ├── receipt.svg        # futures_fee.html 图标
+    │   └── vite.config.mjs    # Vite 开发服务器配置（API 代理）
 ├── src/
 │   ├── bin/               # CLI 入口
 │   │   └── hq.ts          # 命令解析（commander）

@@ -328,25 +328,28 @@ function parseQuote(symbol: Symbol, raw: string): Quote | null {
 }
 
 /**
- * 输出 markdown 表格（使用 Emoji 标记：🔴涨 🟢跌）
+ * 输出 JSON 行情数据（由模型自行渲染展示）
  */
-export function printTable(title: string, results: Quote[]): void {
-  if (results.length === 0) return;
+export function printJson(results: QueryResults): void {
+  const groups: Record<string, { label: string; items: Quote[] }> = {
+    stock:  { label: '📈 股票行情', items: results.stock },
+    fund:   { label: '💰 基金行情', items: results.fund },
+    futures: { label: '📦 期货主力行情', items: results.futures },
+    index:  { label: '📊 指数行情', items: results.index },
+  };
 
-  console.log(`\n### ${title}\n`);
-  console.log('| 编码 | 名称 | 当前价 | 涨跌 | 涨跌幅 | 最高 | 最低 |');
-  console.log('|------|------|--------|------|--------|------|------|');
+  const output: any[] = [];
 
-  for (const r of results) {
-    let emoji = '';
-    if (r.change.startsWith('+')) emoji = '🔴';
-    else if (r.change.startsWith('-')) emoji = '🟢';
-
-    const displayChange = emoji ? `${emoji} ${r.change}` : r.change;
-    const displayPercent = emoji ? `${emoji} ${r.changePercent}` : r.changePercent;
-
-    console.log(`| ${r.code} | ${r.name} | ${r.price} | ${displayChange} | ${displayPercent} | ${r.high} | ${r.low} |`);
+  for (const [key, group] of Object.entries(groups)) {
+    if (group.items.length === 0) continue;
+    output.push({
+      type: key,
+      label: group.label,
+      data: group.items,
+    });
   }
+
+  console.log(JSON.stringify(output, null, 2));
 }
 
 // 导出 parseQuote 供 sina.ts 使用

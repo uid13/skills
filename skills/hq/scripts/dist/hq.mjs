@@ -21311,21 +21311,37 @@ function parseQuote(symbol, raw) {
 	};
 }
 /**
-* 输出 markdown 表格（使用 Emoji 标记：🔴涨 🟢跌）
+* 输出 JSON 行情数据（由模型自行渲染展示）
 */
-function printTable(title, results) {
-	if (results.length === 0) return;
-	console.log(`\n### ${title}\n`);
-	console.log("| 编码 | 名称 | 当前价 | 涨跌 | 涨跌幅 | 最高 | 最低 |");
-	console.log("|------|------|--------|------|--------|------|------|");
-	for (const r of results) {
-		let emoji = "";
-		if (r.change.startsWith("+")) emoji = "🔴";
-		else if (r.change.startsWith("-")) emoji = "🟢";
-		const displayChange = emoji ? `${emoji} ${r.change}` : r.change;
-		const displayPercent = emoji ? `${emoji} ${r.changePercent}` : r.changePercent;
-		console.log(`| ${r.code} | ${r.name} | ${r.price} | ${displayChange} | ${displayPercent} | ${r.high} | ${r.low} |`);
+function printJson(results) {
+	const groups = {
+		stock: {
+			label: "📈 股票行情",
+			items: results.stock
+		},
+		fund: {
+			label: "💰 基金行情",
+			items: results.fund
+		},
+		futures: {
+			label: "📦 期货主力行情",
+			items: results.futures
+		},
+		index: {
+			label: "📊 指数行情",
+			items: results.index
+		}
+	};
+	const output = [];
+	for (const [key, group] of Object.entries(groups)) {
+		if (group.items.length === 0) continue;
+		output.push({
+			type: key,
+			label: group.label,
+			data: group.items
+		});
 	}
+	console.log(JSON.stringify(output, null, 2));
 }
 //#endregion
 //#region src/lib/sina.ts
@@ -21368,15 +21384,12 @@ new Command().name("hq").description("查询股票、基金、期货、指数实
 	try {
 		const results = await queryQuotes(codes);
 		if (results.stock.length + results.fund.length + results.futures.length + results.index.length === 0) {
-			console.log("未获取到行情数据");
+			console.log(JSON.stringify({ error: "未获取到行情数据" }));
 			process.exit(1);
 		}
-		printTable("📈 股票行情", results.stock);
-		printTable("💰 基金行情", results.fund);
-		printTable("📦 期货主力行情", results.futures);
-		printTable("📊 指数行情", results.index);
+		printJson(results);
 	} catch (err) {
-		console.error("查询失败:", err.message);
+		console.log(JSON.stringify({ error: "查询失败: " + err.message }));
 		process.exit(1);
 	}
 }).parse();

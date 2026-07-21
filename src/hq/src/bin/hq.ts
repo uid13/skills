@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { queryQuotes } from '../lib/sina.js';
-import { printTable } from '../lib/parser.js';
+import { printJson } from '../lib/parser.js';
 
 const program = new Command()
   .name('hq')
@@ -13,16 +13,13 @@ const program = new Command()
       const total = results.stock.length + results.fund.length + results.futures.length + results.index.length;
 
       if (total === 0) {
-        console.log('未获取到行情数据');
+        console.log(JSON.stringify({ error: '未获取到行情数据' }));
         process.exit(1);
       }
 
-      printTable('📈 股票行情', results.stock);
-      printTable('💰 基金行情', results.fund);
-      printTable('📦 期货主力行情', results.futures);
-      printTable('📊 指数行情', results.index);
+      printJson(results);
     } catch (err: any) {
-      console.error('查询失败:', err.message);
+      console.log(JSON.stringify({ error: '查询失败: ' + err.message }));
       process.exit(1);
     }
   });
