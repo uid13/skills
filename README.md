@@ -18,8 +18,8 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 | **music** | 代码型 | 在线音乐播放（模型调用 yt-dlp/mpv，music.mjs 仅 IPC 控制） | 已简化 |
 | **hq** | 代码型 | 股票/基金/期货/指数实时行情查询（新浪接口，Vite 代理解决 CORS） | 已上线 |
 | **pp** | 网页型 | Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML） | 已上线 |
-| **wc** | 资源型 | 英语单词分类语义学习（LLM 驱动 + 浏览器查看页） | 待上线 |
-| **wc-jp** | 资源型 | 日语单词分类语义学习（LLM 驱动 + 浏览器查看页） | 待上线 |
+| **wc** | 资源型 | 英语单词分类语义学习（LLM 驱动 + 浏览器查看页） | 已上线 |
+| **wc-jp** | 资源型 | 日语单词分类语义学习（LLM 驱动 + 浏览器查看页） | 已上线 |
 
 ## 安装
 
@@ -29,6 +29,11 @@ npx skills add https://github.com/uid13/skills.git
 
 # 只安装指定技能
 npx skills add https://github.com/uid13/skills.git --skill imagegen-magick
+npx skills add https://github.com/uid13/skills.git --skill music
+npx skills add https://github.com/uid13/skills.git --skill hq
+npx skills add https://github.com/uid13/skills.git --skill pp
+npx skills add https://github.com/uid13/skills.git --skill wc
+npx skills add https://github.com/uid13/skills.git --skill wc-jp
 ```
 
 ## 项目结构
@@ -39,13 +44,17 @@ skills-uid13/
 │   ├── imagegen-magick/           # 图像生成技能（资源型）
 │   ├── music/                     # 音乐播放技能（代码型）
 │   ├── hq/                        # 行情查询技能（代码型）
-│   └── pp/                        # 图片画廊技能（网页型）
+│   ├── pp/                        # 图片画廊技能（网页型）
+│   ├── wc/                        # 英语单词分类语义学习（资源型）
+│   └── wc-jp/                     # 日语单词分类语义学习（资源型）
 │
 ├── skills/                        # 构建产物（Agent Skills 规范结构）
 │   ├── imagegen-magick/
 │   ├── music/
 │   ├── hq/
-│   └── pp/
+│   ├── pp/
+│   ├── wc/
+│   └── wc-jp/
 │
 ├── AGENTS.md                      # 项目级 AI 编码指南
 ├── CONTRIBUTING.md                # 贡献指南
