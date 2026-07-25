@@ -11,7 +11,7 @@ Agent 直接调用外部工具（`magick` CLI），无需自定义脚本。
 ```
 src/imagegen-magick/
 ├── public/                # 资源目录（构建时复制到 skills/）
-│   ├── fonts/             # 内置字体（Cascadia Next SC NF，7 个字重）
+│   ├── fonts/             # 内置字体（Cascadia Next SC NF Regular）
 │   ├── references/        # 参考文档（按需加载）
 │   └── SKILL.md           # 技能入口文档
 ├── src/                   # Vite 构建入口

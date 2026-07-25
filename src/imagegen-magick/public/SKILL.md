@@ -9,10 +9,10 @@ description: "生成或编辑矢量/程序化图像（博客封面、Logo、图�
 
 ## 内置字体
 
-本技能内置 **Cascadia Next SC NF** 字体（中英文 2:1 等宽），7 个字重，无需用户安装。
+本技能内置 **Cascadia Next SC NF Regular** 字体（中英文 2:1 等宽），无需用户安装。
 字体文件位于 `fonts/` 目录，ImageMagick 渲染时自动使用。
 
-SVG 中统一使用 `font-family="Cascadia Next SC NF"`。
+SVG 中统一使用 `font-family="Cascadia Next SC NF Regular"`。
 
 ## 标准工作流（5 个 Phase）
 
@@ -71,7 +71,7 @@ Primary request: <用户的核心需求>
 Dimensions: <输出尺寸，用户未指定时根据用途推断>
 Style: <视觉风格>
 Text (verbatim): "<精确文字内容>"
-Typography: 固定使用 Cascadia Next SC NF
+Typography: 固定使用 Cascadia Next SC NF Regular
 Color palette: <配色方案>
 Composition/framing: <构图与布局>
 Constraints: <必须保留 / 必须避免>
@@ -101,14 +101,13 @@ Constraints: <必须保留 / 必须避免>
 - 多样化设计示例参考 `references/sample-prompts.md`
 
 **内置字体**：
-本技能内置 Cascadia Next SC NF 字体（中英文 2:1 等宽），所有 SVG 统一使用该字体：
+本技能内置 Cascadia Next SC NF Regular 字体（中英文 2:1 等宽），所有 SVG 统一使用该字体：
 
 ```xml
-<text font-family="Cascadia Next SC NF" font-size="32" font-weight="bold">中文 + English</text>
+<text font-family="Cascadia Next SC NF Regular" font-size="32">中文 + English</text>
 ```
 
 - 字体文件位于 `fonts/` 目录，ImageMagick 渲染时自动使用，无需用户安装
-- 支持 7 个字重：`font-weight` 可选 `100`(ExtraLight) `200`(Light) `400`(Regular) `500`(Medium) `600`(SemiBold) `700`(Bold) `800`(ExtraBold)
 - **不要使用其他字体名**，不要写 fallback 链
 
 **写入 SVG 文件**（推荐命名 `design-v1.svg`），然后用 `magick` 命令渲染。
