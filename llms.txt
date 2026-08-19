@@ -12,7 +12,7 @@ Monorepo 工程，使用 Vite 8（Rolldown）+ TypeScript 构建 4 个 Agent 技
 
 - [hq](/skills/hq/SKILL.md) — 股票/基金/期货/指数实时行情查询（新浪接口，CLI 输出 Markdown 表格）
 - [imagegen-magick](/skills/imagegen-magick/SKILL.md) — 程序化图像生成（ImageMagick 7+，内置字体 + Iconify 图标）
-- [music](/skills/music/SKILL.md) — 在线音乐播放（yt-dlp + mpv IPC 控制）
+- [music](/skills/music/SKILL.md) — 多音源在线音乐播放（B站/mail.ru/SoundCloud/YouTube，yt-dlp + mpv）
 - [pp](/skills/pp/SKILL.md) — Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML）
 - [wc](/skills/wc/SKILL.md) — 英语单词分类语义学习（LLM 驱动 + 浏览器查看页）
 - [wc-jp](/skills/wc-jp/SKILL.md) — 日语单词分类语义学习（LLM 驱动 + 浏览器查看页）

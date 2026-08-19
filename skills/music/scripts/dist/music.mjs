@@ -3140,6 +3140,11 @@ var COMMANDS = {
 	],
 	stop: ["stop"]
 };
+var IPC_ERROR_CODES = {
+	timeout: "IPC_TIMEOUT",
+	"connection failed": "IPC_CONN_FAILED",
+	"parse failed": "PARSE_FAILED"
+};
 function isRunning() {
 	const result = import_cross_spawn.default.sync(config.checkProcess.cmd, config.checkProcess.args, { encoding: "utf8" });
 	return result.status === 0 && config.isMatch(result.stdout);
@@ -3152,7 +3157,7 @@ async function sendIpc(command) {
 		const socket = new net.Socket();
 		const timer = setTimeout(() => {
 			socket.destroy();
-			resolve({ error: "timeout" });
+			resolve({ error: IPC_ERROR_CODES.timeout });
 		}, 5e3);
 		socket.connect(IPC_PATH);
 		socket.write(JSON.stringify({ command }) + "\n");
@@ -3161,15 +3166,33 @@ async function sendIpc(command) {
 			try {
 				resolve(JSON.parse(data.toString().split("\n")[0]));
 			} catch {
-				resolve({ error: "parse failed" });
+				resolve({ error: IPC_ERROR_CODES["parse failed"] });
 			}
 			socket.destroy();
 		});
 		socket.on("error", () => {
 			clearTimeout(timer);
-			resolve({ error: "connection failed" });
+			resolve({ error: IPC_ERROR_CODES["connection failed"] });
 		});
 	});
+}
+async function getStatusInfo() {
+	const results = await Promise.all([
+		"pause",
+		"media-title",
+		"duration",
+		"time-pos",
+		"volume",
+		"pid"
+	].map(async (prop) => {
+		return {
+			prop,
+			res: await sendIpc(["get_property", prop])
+		};
+	}));
+	const failed = results.find((r) => r.res.error === IPC_ERROR_CODES.timeout || r.res.error === IPC_ERROR_CODES["connection failed"] || r.res.error === IPC_ERROR_CODES["parse failed"]);
+	if (failed) return { error: failed.res.error };
+	return Object.fromEntries(results.map((r) => [r.prop, r.res.error === "success" ? r.res.data : void 0]));
 }
 //#endregion
 //#region src/bin/music.ts
@@ -3197,14 +3220,28 @@ for (const [name, cmd] of Object.entries(COMMANDS)) program.command(name).descri
 });
 program.command("status").description("查询播放状态").action(async () => {
 	if (!isRunning()) {
-		console.log(JSON.stringify({ status: "stopped" }));
+		console.log(JSON.stringify({ state: "stopped" }));
 		process.exit(0);
 	}
-	const state = (await sendIpc(["get_property", "pause"])).data === true ? "paused" : "playing";
+	const info = await getStatusInfo();
+	if (info.error) {
+		console.log(JSON.stringify({
+			state: "error",
+			code: info.error,
+			message: "mpv IPC 查询失败"
+		}));
+		process.exit(0);
+	}
+	const state = info.pause === true ? "paused" : "playing";
 	console.log(JSON.stringify({
-		status: "ok",
-		state
+		state,
+		pid: info.pid,
+		title: info["media-title"],
+		duration: info.duration,
+		position: info["time-pos"],
+		volume: info.volume
 	}));
+	process.exit(0);
 });
 program.parse();
 //#endregion

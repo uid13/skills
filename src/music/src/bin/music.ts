@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
-import { isRunning, killMpv, sendIpc, COMMANDS } from '../lib/mpv.js'
+import { isRunning, killMpv, sendIpc, getStatusInfo, COMMANDS } from '../lib/mpv.js'
 
 const program = new Command()
   .name('music')
@@ -26,17 +26,32 @@ for (const [name, cmd] of Object.entries(COMMANDS)) {
     })
 }
 
-// status 命令
+// status 命令：输出结构化 JSON，单一 state 字段（playing/paused/stopped/error），供多音源 fallback 判定
 program.command('status')
   .description('查询播放状态')
   .action(async () => {
+    // mpv 未运行 → stopped
     if (!isRunning()) {
-      console.log(JSON.stringify({ status: 'stopped' }))
+      console.log(JSON.stringify({ state: 'stopped' }))
       process.exit(0)
     }
-    const result = await sendIpc(['get_property', 'pause'])
-    const state = result.data === true ? 'paused' : 'playing'
-    console.log(JSON.stringify({ status: 'ok', state }))
+    // 批量查询 mpv 属性聚合返回；IPC 异常 → error
+    const info = await getStatusInfo()
+    if (info.error) {
+      console.log(JSON.stringify({ state: 'error', code: info.error, message: 'mpv IPC 查询失败' }))
+      process.exit(0)
+    }
+    // pause 属性为 true → paused，否则 playing；附加曲目与播放进度信息
+    const state = info.pause === true ? 'paused' : 'playing'
+    console.log(JSON.stringify({
+      state,
+      pid: info.pid,
+      title: info['media-title'],
+      duration: info.duration,
+      position: info['time-pos'],
+      volume: info.volume,
+    }))
+    process.exit(0)
   })
 
 program.parse()

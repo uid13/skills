@@ -57,6 +57,9 @@ importers:
       cross-spawn:
         specifier: ^7.0.6
         version: 7.0.6
+      user-agents:
+        specifier: ^2.1.77
+        version: 2.1.155
     devDependencies:
       '@types/cross-spawn':
         specifier: ^6.0.6

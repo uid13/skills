@@ -8,9 +8,12 @@ export default defineConfig({
   build: {
     ssr: true,
     lib: {
-      entry: resolve(__dirname, 'src/bin/music.ts'),
+      // 多入口：music 主控制脚本 + gen-ua 随机 UA 生成脚本
+      entry: {
+        music: resolve(__dirname, 'src/bin/music.ts'),
+        'gen-ua': resolve(__dirname, 'src/bin/gen-ua.ts'),
+      },
       formats: ['es'],
-      fileName: 'music',
     },
     outDir: resolve(__dirname, '../../skills/music'),
     emptyOutDir: true,

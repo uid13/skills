@@ -15,7 +15,7 @@ Claude Code、Codex Desktop、OpenCode、Cursor、GitHub Copilot、Gemini CLI、
 | 技能 | 类型 | 说明 | 状态 |
 |------|------|------|------|
 | **imagegen-magick** | 资源型 | 程序化图像生成（文档 + 内置字体 + Iconify 图标） | 纯资源，Vite public 构建 |
-| **music** | 代码型 | 在线音乐播放（模型调用 yt-dlp/mpv，music.mjs 仅 IPC 控制） | 已简化 |
+| **music** | 代码型 | 在线音乐播放（多音源 B站/mail.ru/SoundCloud/YouTube，yt-dlp+mpv） | 已上线 |
 | **hq** | 代码型 | 股票/基金/期货/指数实时行情查询（新浪接口，Vite 代理解决 CORS） | 已上线 |
 | **pp** | 网页型 | Pinterest 图片画廊（Vue 3 + UnoCSS + Viewer.js，单文件 HTML） | 已上线 |
 | **wc** | 资源型 | 英语单词分类语义学习（LLM 驱动 + 浏览器查看页） | 已上线 |
@@ -70,7 +70,7 @@ skills-uid13/
 ## 各技能文档
 
 - [imagegen-magick](./skills/imagegen-magick/SKILL.md) — 程序化图像生成（资源型技能）
-- [music](./skills/music/SKILL.md) — 在线音乐播放（代码型技能）
+- [music](./skills/music/SKILL.md) — 多音源在线音乐播放（代码型技能）
 - [hq](./skills/hq/SKILL.md) — 实时行情查询（代码型技能）
 - [pp](./skills/pp/SKILL.md) — Pinterest 图片画廊（网页型技能）
 - [wc](./skills/wc/SKILL.md) — 英语单词分类语义学习（资源型技能）
