@@ -51,5 +51,6 @@ node <skill-dir>/scripts/dist/music.mjs status
 
 ## 边界情况
 
-- **412 风控**：必须使用桌面端 UA（gen-ua.mjs 固定生成 `deviceCategory:'desktop'`）；若仍遇 412，换新 UA 重试 1 次（等待 2-3 秒再重试——412 是同 IP 短时频控，间隔时间是恢复关键，与 UA 无关），仍失败则跳过该源
+- **412 风控**：必须使用桌面端 UA（gen-ua.mjs 固定生成 `deviceCategory:'desktop'`）；若仍遇 412，换新 UA 重试，仍失败则跳过该源
 - **必须用 BV 号**：`--flat-playlist` 只返回数字 av 号，无法播放；必须用非 flat 搜索直接取 BV 号
+- **Windows 中文系统输出乱码**：yt-dlp（PyInstaller 版）stdout 按系统代码页（GBK）写入，中文标题在 UTF-8 终端/工具下显示乱码，`PYTHONIOENCODING=utf-8` 无效。搜索输出应经 `iconv -f GBK -t UTF-8` 转码后再解析标题（macOS/Linux 默认 UTF-8，无此问题）
