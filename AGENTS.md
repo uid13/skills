@@ -42,7 +42,7 @@
 
 - 所有编译产物统一为 `.mjs`（ESM 格式）
 - Node.js 版本要求 >= 22
-- 保留 source map（.mjs.map）便于调试
+- 不发布 source map（.mjs.map）——减小安装体积
 
 ## 编码风格
 

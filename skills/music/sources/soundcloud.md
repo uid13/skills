@@ -8,7 +8,7 @@
 
 ## search(keyword) 模板
 
-搜索使用 `scsearch5:` 前缀，携带随机桌面 UA：
+搜索使用 `scsearch5:` 前缀，携带随机桌面 UA（按 `reference/ua-spec.md` 现场生成，下同）：
 
 ```bash
 yt-dlp "scsearch5:<词>" --dump-json --no-warnings --user-agent "<UA>"
@@ -24,13 +24,13 @@ yt-dlp "scsearch5:<词>" --dump-json --no-warnings --user-agent "<UA>"
 
 ## play(playUrl) 模板
 
-**差异参数**：`--ytdl-raw-options=add-header=Referer:https://soundcloud.com/` + 播放 URL **完整 URL** `https://soundcloud.com/<用户>/<曲名>`；UA 经 `--ytdl-raw-options=user-agent=<UA>` 传递。
+**差异参数**：`--ytdl-raw-options=add-header=Referer:https://soundcloud.com/` + 播放 URL **完整 URL** `https://soundcloud.com/<用户>/<曲名>`；UA 经 `--ytdl-raw-options=user-agent=<UA>` 传递（`<UA>` 为模型按 `reference/ua-spec.md` 生成的随机桌面 UA）。
 
 Windows / Linux / macOS (Git Bash)：
 
 ```bash
 node <skill-dir>/scripts/dist/music.mjs stop
-UA="$(node <skill-dir>/scripts/dist/gen-ua.mjs)"
+UA="<按 ua-spec.md 生成的桌面 UA>"
 MSYS_NO_PATHCONV=1 mpv --no-video --ytdl --ytdl-format=bestaudio --input-ipc-server='\\\\.\\pipe\\mpv-ipc' "--ytdl-raw-options=user-agent=\"$UA\"" --ytdl-raw-options=add-header=Referer:https://soundcloud.com/ "https://soundcloud.com/<用户>/<曲名>" > /dev/null 2>&1 &
 sleep 5
 node <skill-dir>/scripts/dist/music.mjs status
@@ -40,13 +40,13 @@ Linux/macOS (Bash, 原生 shell)：
 
 ```bash
 node <skill-dir>/scripts/dist/music.mjs stop
-UA="$(node <skill-dir>/scripts/dist/gen-ua.mjs)"
+UA="<按 ua-spec.md 生成的桌面 UA>"
 nohup mpv --no-video --ytdl --ytdl-format=bestaudio --input-ipc-server=/tmp/mpv-ipc "--ytdl-raw-options=user-agent=\"$UA\"" --ytdl-raw-options=add-header=Referer:https://soundcloud.com/ "https://soundcloud.com/<用户>/<曲名>" > /dev/null 2>&1 &
 sleep 5
 node <skill-dir>/scripts/dist/music.mjs status
 ```
 
-> `--no-video --ytdl-format=bestaudio --input-ipc-server` + 随机 UA 由 SKILL.md 契约统一固定，此处仅列 SoundCloud 差异化参数（Referer + 完整 URL）。
+> `--no-video --ytdl-format=bestaudio --input-ipc-server` + 随机 UA 由 SKILL.md 契约统一固定，此处仅列 SoundCloud 差异化参数（Referer + 完整 URL）；`<UA>` 由模型按 `reference/ua-spec.md` 生成。
 > **Windows 注意**：Git Bash 会折叠反斜杠，IPC 路径必须写 **4 个反斜杠** `'\\\\.\\pipe\\mpv-ipc'`；UA 值含空格需内嵌双引号 `\"$UA\"`。
 
 ## 边界情况

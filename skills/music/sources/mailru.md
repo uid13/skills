@@ -8,7 +8,7 @@
 
 ## search(keyword) 模板
 
-无 search 前缀，直接使用搜索 URL（关键词需 URL 编码，空格 → `%20`），携带随机桌面 UA：
+无 search 前缀，直接使用搜索 URL（关键词需 URL 编码，空格 → `%20`），携带随机桌面 UA（按 `reference/ua-spec.md` 现场生成，下同）：
 
 ```bash
 yt-dlp "https://my.mail.ru/music/search/<URL编码词>" --dump-json --no-warnings --playlist-items 1 --user-agent "<UA>"
@@ -24,13 +24,13 @@ yt-dlp "https://my.mail.ru/music/search/<URL编码词>" --dump-json --no-warning
 
 ## play(playUrl) 模板
 
-**差异参数**：`--http-header-fields="Referer: https://my.mail.ru/"` + 播放 URL mp3 直链（**必须 https**）；UA 经 `--http-header-fields="User-Agent: <UA>"` 合并传递。
+**差异参数**：`--http-header-fields="Referer: https://my.mail.ru/"` + 播放 URL mp3 直链（**必须 https**）；UA 经 `--http-header-fields="User-Agent: <UA>"` 合并传递（`<UA>` 为模型按 `reference/ua-spec.md` 生成的随机桌面 UA）。
 
 Windows / Linux / macOS (Git Bash)：
 
 ```bash
 node <skill-dir>/scripts/dist/music.mjs stop
-UA="$(node <skill-dir>/scripts/dist/gen-ua.mjs)"
+UA="<按 ua-spec.md 生成的桌面 UA>"
 MSYS_NO_PATHCONV=1 mpv --no-video --input-ipc-server='\\\\.\\pipe\\mpv-ipc' "--http-header-fields=User-Agent: $UA" "--http-header-fields=Referer: https://my.mail.ru/" "https://moosic.my.mail.ru/file/<id>.mp3" > /dev/null 2>&1 &
 sleep 5
 node <skill-dir>/scripts/dist/music.mjs status
@@ -40,7 +40,7 @@ Linux/macOS (Bash, 原生 shell)：
 
 ```bash
 node <skill-dir>/scripts/dist/music.mjs stop
-UA="$(node <skill-dir>/scripts/dist/gen-ua.mjs)"
+UA="<按 ua-spec.md 生成的桌面 UA>"
 nohup mpv --no-video --input-ipc-server=/tmp/mpv-ipc "--http-header-fields=User-Agent: $UA" "--http-header-fields=Referer: https://my.mail.ru/" "https://moosic.my.mail.ru/file/<id>.mp3" > /dev/null 2>&1 &
 sleep 5
 node <skill-dir>/scripts/dist/music.mjs status

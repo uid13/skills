@@ -74,7 +74,7 @@ pnpm --filter wc-jp-src dev
 
 1. **不要手动修改 `skills/` 下的文件** — 它们都是构建产物，源码在 `src/` 中修改后通过 `pnpm build` 编译
 2. **零依赖分发** — 所有运行时依赖通过 Vite 打包进产物，用户无需 `pnpm install`
-3. **保留 source map** — 便于调试
+3. **不发布 source map** — 减小安装体积（`sourcemap: false`）
 4. **退出码规范**（代码型技能）：`0` 成功、`1` 一般错误、`2` 参数错误、`3` 依赖缺失
 
 ## 构建产物验证

@@ -3195,6 +3195,39 @@ async function getStatusInfo() {
 	return Object.fromEntries(results.map((r) => [r.prop, r.res.error === "success" ? r.res.data : void 0]));
 }
 //#endregion
+//#region src/lib/bilibili.ts
+var SEARCH_API = "https://api.bilibili.com/x/web-interface/search/all/v2";
+function cleanTitle(title) {
+	return title.replace(/<[^>]+>/g, "");
+}
+function toSeconds(duration) {
+	const [min, sec] = duration.split(":").map(Number);
+	return min * 60 + (sec || 0);
+}
+async function searchBilibili(keyword, ua) {
+	const params = new URLSearchParams({
+		search_type: "video",
+		keyword
+	});
+	const headers = ua ? { "User-Agent": ua } : {};
+	const res = await fetch(`${SEARCH_API}?${params.toString()}`, { headers });
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	const body = await res.json();
+	if (body.code !== 0) throw new Error(`B站搜索失败 code=${body.code}`);
+	const candidates = [];
+	for (const item of body.data.result) {
+		if (item.result_type !== "video") continue;
+		for (const v of item.data) candidates.push({
+			bvid: v.bvid,
+			duration: toSeconds(v.duration),
+			play: v.play,
+			danmaku: v.danmaku,
+			title: cleanTitle(v.title)
+		});
+	}
+	return candidates;
+}
+//#endregion
 //#region src/bin/music.ts
 var program = new Command().name("music").description("mpv 播放控制（IPC）");
 for (const [name, cmd] of Object.entries(COMMANDS)) program.command(name).description(`发送 ${name} 命令`).action(async () => {
@@ -3243,8 +3276,16 @@ program.command("status").description("查询播放状态").action(async () => {
 	}));
 	process.exit(0);
 });
+program.command("search-bili").description("B站搜索（/all/v2 免 412）").requiredOption("--keyword <词>", "搜索关键词（中文原文）").option("--ua <ua>", "随机桌面 UA（按 reference/ua-spec.md 生成）").action(async (opts) => {
+	try {
+		const candidates = await searchBilibili(opts.keyword, opts.ua);
+		console.log(JSON.stringify({ candidates }));
+		process.exit(0);
+	} catch (e) {
+		console.log(JSON.stringify({ error: e.message }));
+		process.exit(1);
+	}
+});
 program.parse();
 //#endregion
 export {};
-
-//# sourceMappingURL=music.mjs.map

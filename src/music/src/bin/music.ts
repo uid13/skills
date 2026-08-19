@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
 import { isRunning, killMpv, sendIpc, getStatusInfo, COMMANDS } from '../lib/mpv.js'
+import { searchBilibili } from '../lib/bilibili.js'
 
 const program = new Command()
   .name('music')
@@ -52,6 +53,23 @@ program.command('status')
       volume: info.volume,
     }))
     process.exit(0)
+  })
+
+// search-bili 命令：B站搜索（走 /all/v2 免 cookie/免签名端点，不受搜索接口 412 风控影响）
+// 输出结构化 JSON：{ candidates: [{ bvid, duration, play, danmaku, title }] }
+program.command('search-bili')
+  .description('B站搜索（/all/v2 免 412）')
+  .requiredOption('--keyword <词>', '搜索关键词（中文原文）')
+  .option('--ua <ua>', '随机桌面 UA（按 reference/ua-spec.md 生成）')
+  .action(async (opts) => {
+    try {
+      const candidates = await searchBilibili(opts.keyword, opts.ua)
+      console.log(JSON.stringify({ candidates }))
+      process.exit(0)
+    } catch (e) {
+      console.log(JSON.stringify({ error: (e as Error).message }))
+      process.exit(1)
+    }
   })
 
 program.parse()

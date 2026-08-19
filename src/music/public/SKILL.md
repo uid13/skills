@@ -6,7 +6,7 @@ license: MIT
 
 # Music Player Skill
 
-在线音乐播放和播放控制技能。模型直接调用 yt-dlp 和 mpv CLI，music.mjs 仅用于播放控制。多音源（B站 / mail.ru / SoundCloud）按固定 fallback 顺序播放，YouTube 预留插槽。
+在线音乐播放和播放控制技能。模型直接调用 yt-dlp 和 mpv CLI，music.mjs 负责播放控制（IPC）与 B站搜索（search-bili）。多音源（B站 / mail.ru / SoundCloud）按固定 fallback 顺序播放，YouTube 预留插槽。
 
 **支持平台**：Git Bash (Windows)、Linux、macOS。不支持 PowerShell。
 
@@ -15,11 +15,13 @@ license: MIT
 在首次使用前，在终端尝试运行以下命令。如果提示"找不到命令"，则说明未安装：
 
 ```bash
+node --version
 yt-dlp --version
 mpv --version
 ```
 
 如果缺少依赖，提示用户安装：
+- **Node.js >= 22**: https://nodejs.org/ （运行 music.mjs，B站搜索 search-bili 使用内置 fetch）
 - **yt-dlp**: https://github.com/yt-dlp/yt-dlp#installation
 - **mpv**: https://mpv.io/installation/
 
@@ -48,7 +50,7 @@ flowchart LR
   subgraph 契约层["契约层 SKILL.md"]
     A1["统一 3 步接口<br/>search / select / play"]
     A2["Fallback 链<br/>B站 → mail.ru → SoundCloud"]
-    A3["统一播放参数<br/>--no-video / --ytdl-format=bestaudio<br/>+ 随机 UA + Referer"]
+    A3["统一播放参数<br/>--no-video / --ytdl-format=bestaudio<br/>+ 模型自生成 UA + Referer"]
   end
   subgraph 实现层["实现层 sources/*.md"]
     B1["bilibili.md"]
@@ -57,8 +59,8 @@ flowchart LR
     B4["youtube.md"]
   end
   subgraph 控制层["控制层 music.mjs"]
-    C1["IPC 播放控制"]
-    C2["status 结构化判定"]
+    C1["IPC 播放控制 + status 结构化判定"]
+    C2["search-bili 子命令（/all/v2 免 412 搜索）"]
   end
   模型 --> 契约层
   模型 --> 实现层
@@ -66,13 +68,13 @@ flowchart LR
   契约层 -.约束.-> 实现层
 ```
 
-三层结构：**契约层**（SKILL.md，统一接口与参数）→ **实现层**（sources/*.md，每音源一个适配文件）→ **控制层**（music.mjs，IPC 控制与状态判定）。
+三层结构：**契约层**（SKILL.md，统一接口与参数）→ **实现层**（sources/*.md，每音源一个适配文件）→ **控制层**（music.mjs，IPC 控制、status 结构化判定、search-bili 搜索）。
 
 ### 统一接口定义
 
 每个音源实现同一套 3 步接口，参数/返回由契约统一：
 
-1. **search(keyword)**：给定清洗后的关键词，返回候选列表（含 id / 标题 / 时长 / 播放URL）。
+1. **search(keyword)**：给定清洗后的关键词，返回候选列表（含 id / 标题 / 时长 / 播放定位；B站返回 bvid，其余返回 URL）。
 2. **select(candidates)**：选择最佳候选（标题匹配 + 时长 120-420s + 优先原唱/官方版本）。
 3. **play(playUrl)**：`music.mjs stop` → 启动 mpv（统一参数固定）→ `sleep 5` 后 `music.mjs status` 验证存活。
 
@@ -82,39 +84,6 @@ flowchart LR
 B站 → mail.ru → SoundCloud → YouTube
   └ 失败则降级下一源（无结果 / yt-dlp 报错 / mpv 启动后退出）
 全失败 → 回复"未找到匹配歌曲"，建议更具体的关键词
-```
-
-```mermaid
-flowchart TD
-  S[清洗关键词] --> B[B站 search]
-  B --> BQ{有候选?}
-  BQ -- 否 --> M[mail.ru search]
-  BQ -- 是 --> BS[select 最佳]
-  BS --> BP[play 启动 mpv]
-  BP --> BV{status 存活?}
-  BV -- 是 --> OK[✅ 播放成功 回复用户]
-  BV -- 否 --> M
-  M --> MQ{有候选?}
-  MQ -- 否 --> SC[SoundCloud search]
-  MQ -- 是 --> MS[select 最佳]
-  MS --> MP[play 启动 mpv]
-  MP --> MV{status 存活?}
-  MV -- 是 --> OK
-  MV -- 否 --> SC
-  SC --> SCQ{有候选?}
-  SCQ -- 否 --> Y[YouTube search]
-  SCQ -- 是 --> SCS[select 最佳]
-  SCS --> SCP[play 启动 mpv]
-  SCP --> SCV{status 存活?}
-  SCV -- 是 --> OK
-  SCV -- 否 --> Y
-  Y --> YQ{有候选?}
-  YQ -- 否 --> FAIL[❌ 未找到匹配歌曲]
-  YQ -- 是 --> YS[select 最佳]
-  YS --> YP[play 启动 mpv]
-  YP --> YV{status 存活?}
-  YV -- 是 --> OK
-  YV -- 否 --> FAIL
 ```
 
 ### 多态执行规则
@@ -136,7 +105,7 @@ flowchart TD
 
 ### 防风控统一参数（所有音源一律携带）
 
-- **随机 UA**：每次执行 `node <skill-dir>/scripts/dist/gen-ua.mjs` 生成随机桌面 UA，加在每次 yt-dlp 搜索和 mpv 播放命令中。**不使用硬编码 UA 池。**
+- **随机 UA**：模型每次执行 `read reference/ua-spec.md` 读取生成规范，按份额权重 + 模板现场生成随机桌面 UA，加在每次 search（B站 search-bili / 其余 yt-dlp）和 mpv 播放命令中。**不使用硬编码 UA 池，不依赖 npm 包。**
 - **Referer 统一必加**：
 
 | 音源 | Referer | 传参位置 |
@@ -150,13 +119,7 @@ flowchart TD
 
 ### 随机 UA 生成
 
-每次搜索/播放前执行：
-
-```bash
-node <skill-dir>/scripts/dist/gen-ua.mjs
-```
-
-输出一个随机桌面端浏览器 UA（如 `Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...Chrome/126.0.0.0 Safari/537.36`），再将其拼入 yt-dlp / mpv 命令。生成方式为运行时随机，无需维护 UA 池。
+每次搜索/播放前，先 `read reference/ua-spec.md` 读取生成规范，按其份额权重 + 模板 + 版本范围生成随机桌面 UA，拼入 search（B站 search-bili / 其余 yt-dlp）与 mpv 命令。同一首歌的搜索与播放复用同一 UA。
 
 ### 播放验证机制（结构化 status）
 
@@ -190,21 +153,6 @@ mpv 启动后 `sleep 5`，调用 `node <skill-dir>/scripts/dist/music.mjs status
 - `state === "stopped"` → 判定失败，fallback 下一源
 - `state === "error"` → 判定失败（异常），fallback 下一源
 
-### Fallback 流程伪代码
-
-```
-for 音源 in [B站, mail.ru, SoundCloud, YouTube]:
-    实现 = read("sources/<音源>.md")          # 加载对应实现
-    UA = node <skill-dir>/scripts/dist/gen-ua.mjs
-    candidates = 实现.search(keyword, UA)     # 按实现模板执行
-    if candidates 为空: continue
-    best = 实现.select(candidates)
-    实现.play(best.playUrl, UA)               # stop + mpv + status 验证
-    if 播放存活: 回复成功并 return
-    否则记录失败原因, continue
-回复未找到，建议更具体的关键词
-```
-
 ### 播放时序
 
 ```mermaid
@@ -214,9 +162,9 @@ sequenceDiagram
   participant MS as music.mjs
   participant MPV as mpv
   M->>M: read sources/音源实现.md
-  M->>M: node gen-ua.mjs 获取随机 UA
-  M->>Y: yt-dlp 搜索词（携带 UA）
-  Y-->>M: 候选列表（id/title/duration/playUrl）
+  M->>M: read reference/ua-spec.md 生成 UA
+  M->>MS: search（B站走 search-bili，其余走 yt-dlp）
+  MS-->>M: 候选列表（bvid/title/duration/play）
   M->>M: select 最佳候选
   M->>MS: stop（停止旧播放）
   M->>MPV: 启动 mpv（统一参数 + 差异参数 + UA）
@@ -234,10 +182,11 @@ sequenceDiagram
 
 每个音源一个实现文件，播放命令由「契约统一参数 + 各源差异化参数」拼接而成：
 
-- `sources/bilibili.md` — B站（中文曲极全）
+- `sources/bilibili.md` — B站（中文曲极全；搜索走 `music.mjs search-bili` /all/v2 免 412）
 - `sources/mailru.md` — mail.ru（英文曲直链）
 - `sources/soundcloud.md` — SoundCloud（独立音乐/翻唱）
 - `sources/youtube.md` — YouTube（默认无 cookie，英文曲极全）
+- `reference/ua-spec.md` — 随机桌面 UA 生成规范（所有音源通用）
 
 **执行流程**：先 `read` 上方 SKILL.md 契约取统一参数，再 `read sources/<音源>.md` 取差异化参数，拼接成完整命令。
 
@@ -245,7 +194,7 @@ sequenceDiagram
 
 | 音源 | 中文曲 | 英文曲 | 风控级别 |
 |------|--------|--------|---------|
-| **B站** | 极全（华语流行/OST/翻唱） | 少（官方MV/搬运） | 低-中（搜索偶发 412，需 UA+Referer） |
+| **B站** | 极全（华语流行/OST/翻唱） | 少（官方MV/搬运） | 低（搜索走 search-bili /all/v2 免 412；播放需 UA+Referer） |
 | **mail.ru** | 几乎无 | 有一些（欧美主流歌手） | 低（无需登录，直链即得） |
 | **SoundCloud** | 很少 | 好（独立音乐人/翻唱/remix） | 中（需完整 URL，偶发 DRM） |
 | **YouTube** | 好 | 极全 | 中-高（搜索无 cookie；播放偶发 bot 检测） |

@@ -4,7 +4,7 @@
 
 **代码型技能** — TypeScript 开发，Vite SSR 编译为 `.mjs`。
 
-CLI 入口 `music.mjs` 通过 mpv IPC 控制播放，模型直接调用 `yt-dlp` 和 `mpv` CLI。
+CLI 入口 `music.mjs` 通过 mpv IPC 控制播放 + `search-bili` 子命令走 B站 `/all/v2` 搜索，模型直接调用 `yt-dlp` 和 `mpv` CLI。
 多音源（B站 / mail.ru / SoundCloud / YouTube）按固定 fallback 顺序播放。
 
 ## 目录结构
@@ -13,20 +13,22 @@ CLI 入口 `music.mjs` 通过 mpv IPC 控制播放，模型直接调用 `yt-dlp`
 src/music/
 ├── public/                # 技能文档目录（publicDir，构建时整体复制）
 │   ├── SKILL.md           # 技能入口文档（多态接口契约 + Fallback 链）
-│   └── sources/           # 音源实现层（每音源一个适配文件）
-│       ├── bilibili.md    # B站 实现
-│       ├── mailru.md      # mail.ru 实现
-│       ├── soundcloud.md  # SoundCloud 实现
-│       └── youtube.md     # YouTube 实现（默认无 cookie）
+│   ├── sources/           # 音源实现层（每音源一个适配文件）
+│   │   ├── bilibili.md    # B站 实现
+│   │   ├── mailru.md      # mail.ru 实现
+│   │   ├── soundcloud.md  # SoundCloud 实现
+│   │   └── youtube.md     # YouTube 实现（默认无 cookie）
+│   └── reference/         # 通用规范文档
+│       └── ua-spec.md     # 随机桌面 UA 生成规范（模型现场生成，无 npm 依赖）
 ├── src/
 │   ├── bin/               # CLI 入口
-│   │   ├── music.ts       # 命令解析（commander）+ status 结构化 JSON
-│   │   └── gen-ua.ts      # 随机桌面 UA 生成（user-agents）
+│   │   └── music.ts       # 命令解析（commander）+ status 结构化 JSON + search-bili
 │   └── lib/               # 工具库
-│       └── mpv.ts         # mpv IPC 通信 + 批量属性查询 + 错误码枚举
-├── vite.config.ts         # Vite SSR 编译配置（多入口 music + gen-ua）
+│       ├── mpv.ts         # mpv IPC 通信 + 批量属性查询 + 错误码枚举
+│       └── bilibili.ts    # B站搜索（/all/v2 免 cookie/免签名，规避 412 风控）
+├── vite.config.ts         # Vite SSR 编译配置（单入口 music）
 ├── tsconfig.json          # 模块级 TS 配置
-└── package.json           # 模块级依赖（含 user-agents）与构建脚本
+└── package.json           # 模块级依赖与构建脚本
 ```
 
 ## 构建说明
@@ -36,7 +38,7 @@ export default defineConfig({
   build: {
     ssr: true,
     lib: {
-      entry: { music: 'src/bin/music.ts', 'gen-ua': 'src/bin/gen-ua.ts' },
+      entry: 'src/bin/music.ts',
       formats: ['es'],
     },
     outDir: '../../skills/music',
@@ -45,16 +47,16 @@ export default defineConfig({
       output: { entryFileNames: 'scripts/dist/[name].mjs' },
     },
   },
-  ssr: { noExternal: true },  // 打包所有依赖（包括 user-agents、cross-spawn 的子依赖）
+  ssr: { noExternal: true },  // 打包所有 npm 依赖（cross-spawn 及其子依赖）
   publicDir: resolve(__dirname, 'public'),
 })
 ```
 
 关键点：
 - `ssr: true` — externalize node: 内置模块
-- `noExternal: true` — 打包所有 npm 依赖（user-agents 会显著增大 gen-ua.mjs 体积）
-- 多入口 `{ music, 'gen-ua' }` — 分别产出 `music.mjs` 与 `gen-ua.mjs`
-- `entryFileNames: 'scripts/dist/[name].mjs'` — `[name]` 对应多入口名，输出到 `scripts/dist/` 子目录
+- `noExternal: true` — 打包所有 npm 依赖（cross-spawn 子依赖）
+- 单入口 `music` — 仅产出 `music.mjs`
+- `entryFileNames: 'scripts/dist/[name].mjs'` — `[name]` 对应入口名，输出到 `scripts/dist/` 子目录
 
 ## 开发流程
 
@@ -62,8 +64,8 @@ export default defineConfig({
 2. 开发模式：`pnpm dev`（watch 自动编译）
 3. 修改代码（保持中文注释）
 4. 重新编译：`pnpm build`
-5. 验证：`node ../../skills/music/scripts/dist/music.mjs --help`、`node ../../skills/music/scripts/dist/gen-ua.mjs`
-6. 同步产物到安装位置（`SKILL.md` + `sources/` + `scripts/` 复制到 `.agents/skills/music`）
+5. 验证：`node ../../skills/music/scripts/dist/music.mjs --help`
+6. 同步产物到安装位置（`SKILL.md` + `sources/` + `reference/` + `scripts/` 复制到 `.agents/skills/music`）
 7. 确保产物已更新后提交
 
 ## 注意事项

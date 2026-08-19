@@ -8,16 +8,13 @@ export default defineConfig({
   build: {
     ssr: true,
     lib: {
-      // 多入口：music 主控制脚本 + gen-ua 随机 UA 生成脚本
-      entry: {
-        music: resolve(__dirname, 'src/bin/music.ts'),
-        'gen-ua': resolve(__dirname, 'src/bin/gen-ua.ts'),
-      },
+      // 单入口：music 主控制脚本（随机 UA 改由模型按 reference/ua-spec.md 现场生成）
+      entry: resolve(__dirname, 'src/bin/music.ts'),
       formats: ['es'],
     },
     outDir: resolve(__dirname, '../../skills/music'),
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: false,
     minify: false,
     rollupOptions: {
       external: [/^node:/],
