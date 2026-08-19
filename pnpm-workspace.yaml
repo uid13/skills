@@ -1,0 +1,4 @@
+# pnpm workspace 配置：声明 monorepo 中的包目录
+# 每个技能位于 src/ 直接子目录下，模式为 'src/*'
+packages:
+  - 'src/*'

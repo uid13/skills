@@ -52,17 +52,17 @@ export default defineConfig({
 
 ## 开发流程
 
-1. 安装依赖：`npm install`
-2. 开发模式：`npm run dev`（Vite 热更新）
+1. 安装依赖：`pnpm install`
+2. 开发模式：`pnpm dev`（Vite 热更新）
 3. 修改 Vue 组件或样式
-4. 重新编译：`npm run build`
+4. 重新编译：`pnpm build`
 5. 验证：用浏览器打开 `skills/pp/index.html` 测试功能
 6. 确保产物已更新后提交
 
 ## 注意事项
 
 - 不要手动修改 `skills/pp/index.html`，它是 Vite 构建产物
-- `public/pp-data.js` 是运行时数据文件，每次 `npm run build` 会被重置为示例数据
+- `public/pp-data.js` 是运行时数据文件，每次 `pnpm build` 会被重置为示例数据
 - Viewer.js 通过 npm import 引入（`import Viewer from 'viewerjs'`），由 singlefile 内联
 - SKILL.md 中的搜索策略要求 Agent 执行 2 次不同关键词的搜索，汇总去重后生成数据
 - Phase 3 强调必须先写入 pp-data.js 再打开浏览器，顺序错误会导致加载旧数据

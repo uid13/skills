@@ -39,7 +39,7 @@ export default defineConfig({
 ## 开发流程
 
 1. 修改 `public/` 下的 SKILL.md、references/ 或 fonts/
-2. 运行 `npm run build`（Vite 自动复制 public/ 到 skills/）
+2. 运行 `pnpm build`（Vite 自动复制 public/ 到 skills/）
 3. 验证 `skills/imagegen-magick/` 下的产物已更新
 
 ## 注意事项

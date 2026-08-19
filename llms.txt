@@ -4,7 +4,7 @@
 
 ## 项目概述
 
-Monorepo 工程，使用 Vite 8（Rolldown）+ TypeScript 构建 4 个 Agent 技能。所有技能跨平台（Windows / macOS / Linux），零 npm 安装即可运行。
+Monorepo 工程，使用 Vite 8（Rolldown）+ TypeScript 构建 4 个 Agent 技能。所有技能跨平台（Windows / macOS / Linux），零 pnpm install 即可运行。
 
 技能类型：代码型（.mjs）、资源型（纯文档+静态页面）、网页型（单文件 HTML）。
 

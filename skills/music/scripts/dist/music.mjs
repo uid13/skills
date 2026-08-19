@@ -19,13 +19,13 @@ var __copyProps = (to, from, except, desc) => {
 	}
 	return to;
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", {
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule || !__hasOwnProp.call(mod, "default") ? __defProp(target, "default", {
 	value: mod,
 	enumerable: true
 }) : target, mod));
-var __require = /* @__PURE__ */ createRequire(import.meta.url);
+var __require = /* #__PURE__ */ (() => createRequire(import.meta.url))();
 //#endregion
-//#region node_modules/commander/lib/error.js
+//#region ../../node_modules/.pnpm/commander@12.1.0/node_modules/commander/lib/error.js
 var require_error = /* @__PURE__ */ __commonJSMin(((exports) => {
 	/**
 	* CommanderError class
@@ -64,7 +64,7 @@ var require_error = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.InvalidArgumentError = InvalidArgumentError;
 }));
 //#endregion
-//#region node_modules/commander/lib/argument.js
+//#region ../../node_modules/.pnpm/commander@12.1.0/node_modules/commander/lib/argument.js
 var require_argument = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var { InvalidArgumentError } = require_error();
 	var Argument = class {
@@ -95,7 +95,6 @@ var require_argument = /* @__PURE__ */ __commonJSMin(((exports) => {
 				default:
 					this.required = true;
 					this._name = name;
-					break;
 			}
 			if (this._name.length > 3 && this._name.slice(-3) === "...") {
 				this.variadic = true;
@@ -188,7 +187,7 @@ var require_argument = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.humanReadableArgName = humanReadableArgName;
 }));
 //#endregion
-//#region node_modules/commander/lib/help.js
+//#region ../../node_modules/.pnpm/commander@12.1.0/node_modules/commander/lib/help.js
 var require_help = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var { humanReadableArgName } = require_argument();
 	/**
@@ -524,7 +523,7 @@ var require_help = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.Help = Help;
 }));
 //#endregion
-//#region node_modules/commander/lib/option.js
+//#region ../../node_modules/.pnpm/commander@12.1.0/node_modules/commander/lib/option.js
 var require_option = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var { InvalidArgumentError } = require_error();
 	var Option = class {
@@ -796,7 +795,7 @@ var require_option = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.DualOptions = DualOptions;
 }));
 //#endregion
-//#region node_modules/commander/lib/suggestSimilar.js
+//#region ../../node_modules/.pnpm/commander@12.1.0/node_modules/commander/lib/suggestSimilar.js
 var require_suggestSimilar = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var maxDistance = 3;
 	function editDistance(a, b) {
@@ -851,7 +850,7 @@ var require_suggestSimilar = /* @__PURE__ */ __commonJSMin(((exports) => {
 	exports.suggestSimilar = suggestSimilar;
 }));
 //#endregion
-//#region node_modules/commander/lib/command.js
+//#region ../../node_modules/.pnpm/commander@12.1.0/node_modules/commander/lib/command.js
 var require_command = /* @__PURE__ */ __commonJSMin(((exports) => {
 	var EventEmitter = __require("node:events").EventEmitter;
 	var childProcess = __require("node:child_process");
@@ -1383,16 +1382,20 @@ Expecting one of '${allowedValues.join("', '")}'`);
 				const oldValue = this.getOptionValue(name);
 				if (val !== null && option.parseArg) val = this._callParseArg(option, val, oldValue, invalidValueMessage);
 				else if (val !== null && option.variadic) val = option._concatValue(val, oldValue);
-				if (val == null) if (option.negate) val = false;
-				else if (option.isBoolean() || option.optional) val = true;
-				else val = "";
+				if (val == null) {
+					if (option.negate) val = false;
+					else if (option.isBoolean() || option.optional) val = true;
+					else val = "";
+				}
 				this.setOptionValueWithSource(name, val, valueSource);
 			};
 			this.on("option:" + oname, (val) => {
-				handleOptionValue(val, `error: option '${option.flags}' argument '${val}' is invalid.`, "cli");
+				const invalidValueMessage = `error: option '${option.flags}' argument '${val}' is invalid.`;
+				handleOptionValue(val, invalidValueMessage, "cli");
 			});
 			if (option.envVar) this.on("optionEnv:" + oname, (val) => {
-				handleOptionValue(val, `error: option '${option.flags}' value '${val}' from env '${option.envVar}' is invalid.`, "env");
+				const invalidValueMessage = `error: option '${option.flags}' value '${val}' from env '${option.envVar}' is invalid.`;
+				handleOptionValue(val, invalidValueMessage, "env");
 			});
 			return this;
 		}
@@ -1732,12 +1735,13 @@ Expecting one of '${allowedValues.join("', '")}'`);
 			}
 			launchWithNode = sourceExt.includes(path$3.extname(executableFile));
 			let proc;
-			if (process$1.platform !== "win32") if (launchWithNode) {
-				args.unshift(executableFile);
-				args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
-				proc = childProcess.spawn(process$1.argv[0], args, { stdio: "inherit" });
-			} else proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
-			else {
+			if (process$1.platform !== "win32") {
+				if (launchWithNode) {
+					args.unshift(executableFile);
+					args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
+					proc = childProcess.spawn(process$1.argv[0], args, { stdio: "inherit" });
+				} else proc = childProcess.spawn(executableFile, args, { stdio: "inherit" });
+			} else {
 				args.unshift(executableFile);
 				args = incrementNodeInspectorPort(process$1.execArgv).concat(args);
 				proc = childProcess.spawn(process$1.execPath, args, { stdio: "inherit" });
@@ -2180,8 +2184,10 @@ Expecting one of '${allowedValues.join("', '")}'`);
 						"default",
 						"config",
 						"env"
-					].includes(this.getOptionValueSource(optionKey))) if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, process$1.env[option.envVar]);
-					else this.emit(`optionEnv:${option.name()}`);
+					].includes(this.getOptionValueSource(optionKey))) {
+						if (option.required || option.optional) this.emit(`optionEnv:${option.name()}`, process$1.env[option.envVar]);
+						else this.emit(`optionEnv:${option.name()}`);
+					}
 				}
 			});
 		}
@@ -2660,7 +2666,7 @@ var { program: program$1, createCommand, createArgument, createOption, Commander
 	exports.InvalidOptionArgumentError = InvalidArgumentError;
 })))(), 1)).default;
 //#endregion
-//#region ../../node_modules/isexe/windows.js
+//#region ../../node_modules/.pnpm/isexe@2.0.0/node_modules/isexe/windows.js
 var require_windows = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = isexe;
 	isexe.sync = sync;
@@ -2690,7 +2696,7 @@ var require_windows = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 }));
 //#endregion
-//#region ../../node_modules/isexe/mode.js
+//#region ../../node_modules/.pnpm/isexe@2.0.0/node_modules/isexe/mode.js
 var require_mode = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = isexe;
 	isexe.sync = sync;
@@ -2720,7 +2726,7 @@ var require_mode = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 }));
 //#endregion
-//#region ../../node_modules/isexe/index.js
+//#region ../../node_modules/.pnpm/isexe@2.0.0/node_modules/isexe/index.js
 var require_isexe = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	__require("fs");
 	var core;
@@ -2762,7 +2768,7 @@ var require_isexe = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	}
 }));
 //#endregion
-//#region ../../node_modules/which/which.js
+//#region ../../node_modules/.pnpm/which@2.0.2/node_modules/which/which.js
 var require_which = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var isWindows = process.platform === "win32" || process.env.OSTYPE === "cygwin" || process.env.OSTYPE === "msys";
 	var path$2 = __require("path");
@@ -2771,7 +2777,8 @@ var require_which = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var getNotFoundError = (cmd) => Object.assign(/* @__PURE__ */ new Error(`not found: ${cmd}`), { code: "ENOENT" });
 	var getPathInfo = (cmd, opt) => {
 		const colon = opt.colon || COLON;
-		const pathEnv = cmd.match(/\//) || isWindows && cmd.match(/\\/) ? [""] : [...isWindows ? [process.cwd()] : [], ...(opt.path || process.env.PATH || "").split(colon)];
+		const pathEnv = cmd.match(/\//) || isWindows && cmd.match(/\\/) ? [""] : [...isWindows ? [process.cwd()] : [], ...(opt.path || process.env.PATH || 
+		/* istanbul ignore next: very unusual */ "").split(colon)];
 		const pathExtExe = isWindows ? opt.pathExt || process.env.PATHEXT || ".EXE;.CMD;.BAT;.COM" : "";
 		const pathExt = isWindows ? pathExtExe.split(colon) : [""];
 		if (isWindows) {
@@ -2796,14 +2803,17 @@ var require_which = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			const ppRaw = pathEnv[i];
 			const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw;
 			const pCmd = path$2.join(pathPart, cmd);
-			resolve(subStep(!pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd, i, 0));
+			const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd;
+			resolve(subStep(p, i, 0));
 		});
 		const subStep = (p, i, ii) => new Promise((resolve, reject) => {
 			if (ii === pathExt.length) return resolve(step(i + 1));
 			const ext = pathExt[ii];
 			isexe(p + ext, { pathExt: pathExtExe }, (er, is) => {
-				if (!er && is) if (opt.all) found.push(p + ext);
-				else return resolve(p + ext);
+				if (!er && is) {
+					if (opt.all) found.push(p + ext);
+					else return resolve(p + ext);
+				}
 				return resolve(subStep(p, i, ii + 1));
 			});
 		});
@@ -2821,8 +2831,10 @@ var require_which = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 			for (let j = 0; j < pathExt.length; j++) {
 				const cur = p + pathExt[j];
 				try {
-					if (isexe.sync(cur, { pathExt: pathExtExe })) if (opt.all) found.push(cur);
-					else return cur;
+					if (isexe.sync(cur, { pathExt: pathExtExe })) {
+						if (opt.all) found.push(cur);
+						else return cur;
+					}
 				} catch (ex) {}
 			}
 		}
@@ -2834,7 +2846,7 @@ var require_which = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	which.sync = whichSync;
 }));
 //#endregion
-//#region ../../node_modules/path-key/index.js
+//#region ../../node_modules/.pnpm/path-key@3.1.1/node_modules/path-key/index.js
 var require_path_key = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var pathKey = (options = {}) => {
 		const environment = options.env || process.env;
@@ -2845,7 +2857,7 @@ var require_path_key = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports.default = pathKey;
 }));
 //#endregion
-//#region ../../node_modules/cross-spawn/lib/util/resolveCommand.js
+//#region ../../node_modules/.pnpm/cross-spawn@7.0.6/node_modules/cross-spawn/lib/util/resolveCommand.js
 var require_resolveCommand = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var path$1 = __require("path");
 	var which = require_which();
@@ -2876,7 +2888,7 @@ var require_resolveCommand = /* @__PURE__ */ __commonJSMin(((exports, module) =>
 	module.exports = resolveCommand;
 }));
 //#endregion
-//#region ../../node_modules/cross-spawn/lib/util/escape.js
+//#region ../../node_modules/.pnpm/cross-spawn@7.0.6/node_modules/cross-spawn/lib/util/escape.js
 var require_escape = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var metaCharsRegExp = /([()\][%!^"`<>&|;, *?])/g;
 	function escapeCommand(arg) {
@@ -2896,12 +2908,12 @@ var require_escape = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports.argument = escapeArgument;
 }));
 //#endregion
-//#region ../../node_modules/shebang-regex/index.js
+//#region ../../node_modules/.pnpm/shebang-regex@3.0.0/node_modules/shebang-regex/index.js
 var require_shebang_regex = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = /^#!(.*)/;
 }));
 //#endregion
-//#region ../../node_modules/shebang-command/index.js
+//#region ../../node_modules/.pnpm/shebang-command@2.0.0/node_modules/shebang-command/index.js
 var require_shebang_command = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var shebangRegex = require_shebang_regex();
 	module.exports = (string = "") => {
@@ -2914,7 +2926,7 @@ var require_shebang_command = /* @__PURE__ */ __commonJSMin(((exports, module) =
 	};
 }));
 //#endregion
-//#region ../../node_modules/cross-spawn/lib/util/readShebang.js
+//#region ../../node_modules/.pnpm/cross-spawn@7.0.6/node_modules/cross-spawn/lib/util/readShebang.js
 var require_readShebang = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var fs = __require("fs");
 	var shebangCommand = require_shebang_command();
@@ -2932,7 +2944,7 @@ var require_readShebang = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = readShebang;
 }));
 //#endregion
-//#region ../../node_modules/cross-spawn/lib/parse.js
+//#region ../../node_modules/.pnpm/cross-spawn@7.0.6/node_modules/cross-spawn/lib/parse.js
 var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var path = __require("path");
 	var resolveCommand = require_resolveCommand();
@@ -2993,7 +3005,7 @@ var require_parse = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	module.exports = parse;
 }));
 //#endregion
-//#region ../../node_modules/cross-spawn/lib/enoent.js
+//#region ../../node_modules/.pnpm/cross-spawn@7.0.6/node_modules/cross-spawn/lib/enoent.js
 var require_enoent = /* @__PURE__ */ __commonJSMin(((exports, module) => {
 	var isWin = process.platform === "win32";
 	function notFoundError(original, syscall) {

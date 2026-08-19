@@ -18,7 +18,7 @@
 - **资源型技能**（imagegen-magick、wc、wc-jp）：纯文档 + 静态页面，Vite publicDir 机制复制
 - **网页型技能**（pp）：Vue 3 + UnoCSS，vite-plugin-singlefile 编译为单文件 HTML
 
-每个技能独立可用，跨平台（Windows / macOS / Linux），零 npm 安装即可运行。
+每个技能独立可用，跨平台（Windows / macOS / Linux），零 pnpm install 即可运行。
 
 各技能专属的开发指南见 `src/<skill>/AGENTS.md`。
 
@@ -29,8 +29,8 @@
 - 代码型技能：所有运行时依赖通过 Vite 打包进 dist
 - 资源型技能：无代码依赖，仅文档和资源文件
 - 网页型技能：所有依赖通过 vite-plugin-singlefile 内联到 HTML
-- 用户拿到技能后**不需要** `npm install` 即可使用
-- 仅开发时才需要 `npm install`
+- 用户拿到技能后**不需要** `pnpm install` 即可使用
+- 仅开发时才需要 `pnpm install`
 
 ### 2. 跨平台兼容
 
@@ -55,19 +55,21 @@
 ## 构建命令速查
 
 ```bash
-# 全局命令
-npm run build          # 编译所有技能
-npm run dev            # 监听所有技能的改动
-npm run typecheck      # 类型检查（仅代码型技能）
+# 全局命令（根目录执行，pnpm -r 递归到全部 workspace）
+pnpm build          # 编译所有技能
+pnpm dev            # 监听所有技能的改动
+pnpm typecheck      # 类型检查（含 TS 源码的技能：hq / music / pp）
 
-# 单个技能命令（需要 cd 到对应 src 目录）
-npm -w imagegen-magick-src build   # 编译图像生成技能（资源型）
-npm -w wc-src build                # 编译英语词汇学习技能（资源型）
-npm -w wc-jp-src build             # 编译日语词汇学习技能（资源型）
-npm -w music-src build             # 编译音乐播放技能
-npm -w hq-src build                # 编译行情查询技能
-npm -w pp-src build                # 编译图片画廊技能
+# 单个技能命令（--filter 指定 workspace 包名）
+pnpm --filter imagegen-magick-src build   # 编译图像生成技能（资源型）
+pnpm --filter wc-src build                # 编译英语词汇学习技能（资源型）
+pnpm --filter wc-jp-src build             # 编译日语词汇学习技能（资源型）
+pnpm --filter music-src build             # 编译音乐播放技能
+pnpm --filter hq-src build                # 编译行情查询技能
+pnpm --filter pp-src build                # 编译图片画廊技能
 ```
+
+workspace 定义见 `pnpm-workspace.yaml`，锁文件为 `pnpm-lock.yaml`（提交到 git）。
 
 ## 参考资源
 

@@ -1,4 +1,4 @@
-import type { Symbol, Quote, MarketType, AssetType } from './types.js';
+import type { Symbol, Quote, MarketType, AssetType, QueryResults } from './types.js';
 
 /** 字段定义：{key: 字段名，desc: 含义说明} */
 interface FieldDef {
@@ -198,7 +198,7 @@ const MARKET_FIELD_MAP: Record<string, FieldDef[]> = {
 };
 
 /** 6 位 A 股/基金前缀映射表：前缀 → [交易所，类型] */
-const CN_PREFIX_MAP: Record<string, [string, Symbol['type']]> = {
+const CN_PREFIX_MAP: Record<string, [MarketType, Symbol['type']]> = {
   // 上交所股票
   '60': ['sh', 'stock'], '68': ['sh', 'stock'],
   // 深交所股票

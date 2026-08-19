@@ -55,10 +55,10 @@ export default defineConfig({
 
 ## 开发流程
 
-1. 安装依赖：`npm install`
-2. 开发模式：`npm run dev`（watch 自动编译）
+1. 安装依赖：`pnpm install`
+2. 开发模式：`pnpm dev`（watch 自动编译）
 3. 修改代码或 public/ 下的参考页面
-4. 重新编译：`npm run build`
+4. 重新编译：`pnpm build`
 5. 验证：`node ../../skills/hq/scripts/dist/hq.mjs 600519`
 6. 确保产物已更新后提交
 

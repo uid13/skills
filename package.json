@@ -4,23 +4,22 @@
   "private": true,
   "description": "uid13 的 AI Agent 技能集合（Monorepo 工程化）",
   "type": "module",
-  "workspaces": [
-    "src/*"
-  ],
+  "packageManager": "pnpm@11.7.0",
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "dev": "npm run dev --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "clean": "npm run clean --workspaces --if-present"
+    "build": "pnpm -r run build",
+    "dev": "pnpm -r run dev",
+    "test": "pnpm -r run test",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
+    "clean": "pnpm -r run clean"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
     "@types/node": "^22.0.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "pnpm": ">=11"
   },
   "keywords": [
     "agent-skills",

@@ -244,7 +244,7 @@ GET https://api.iconify.design/{prefix}
   </g>
   
   <!-- 主标题 -->
-  <text x="120" y="200" font-family="'Cascadia Code', 'Consolas', monospace" font-size="64" font-weight="bold" fill="#ffffff">
+  <text x="120" y="200" font-family="Cascadia Next SC NF Regular" font-size="64" fill="#ffffff">
     分层分包架构
   </text>
   

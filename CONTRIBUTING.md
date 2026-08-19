@@ -4,7 +4,7 @@
 
 ## 前置要求
 
-- Node.js >= 22，npm >= 10，Git
+- Node.js >= 22，pnpm >= 11，Git
 - 各技能额外依赖项见 [README](./README.md#开发环境)
 
 ## 开发流程
@@ -12,8 +12,8 @@
 ```bash
 git clone https://github.com/uid13/skills.git
 cd skills
-npm install
-npm run build
+pnpm install
+pnpm build
 ```
 
 ### 项目结构
@@ -32,20 +32,20 @@ skills/         # 构建产物（用户视角，零安装即可使用）
 ### 开发模式
 
 ```bash
-npm run dev          # 监听所有技能改动
-npm run build        # 编译所有技能
-npm run typecheck    # 类型检查（仅代码型技能）
+pnpm dev          # 监听所有技能改动
+pnpm build        # 编译所有技能
+pnpm typecheck    # 类型检查（含 TS 源码的技能：hq / music / pp）
 ```
 
 按技能独立开发：
 
 ```bash
-npm -w hq-src dev
-npm -w music-src dev
-npm -w pp-src dev
-npm -w imagegen-magick-src dev
-npm -w wc-src dev
-npm -w wc-jp-src dev
+pnpm --filter hq-src dev
+pnpm --filter music-src dev
+pnpm --filter pp-src dev
+pnpm --filter imagegen-magick-src dev
+pnpm --filter wc-src dev
+pnpm --filter wc-jp-src dev
 ```
 
 ## 编码规范
@@ -72,8 +72,8 @@ npm -w wc-jp-src dev
 
 ### 关键原则
 
-1. **不要手动修改 `skills/` 下的文件** — 它们都是构建产物，源码在 `src/` 中修改后通过 `npm run build` 编译
-2. **零依赖分发** — 所有运行时依赖通过 Vite 打包进产物，用户无需 `npm install`
+1. **不要手动修改 `skills/` 下的文件** — 它们都是构建产物，源码在 `src/` 中修改后通过 `pnpm build` 编译
+2. **零依赖分发** — 所有运行时依赖通过 Vite 打包进产物，用户无需 `pnpm install`
 3. **保留 source map** — 便于调试
 4. **退出码规范**（代码型技能）：`0` 成功、`1` 一般错误、`2` 参数错误、`3` 依赖缺失
 
@@ -94,7 +94,7 @@ node skills/music/scripts/dist/music.mjs --help
 ## PR 流程
 
 1. Fork 仓库并创建特性分支
-2. 确保通过 `npm run build` 编译
+2. 确保通过 `pnpm build` 编译
 3. 提交前确认 `skills/` 下构建产物已同步更新
 4. 创建 Pull Request，描述变更内容和动机
 
