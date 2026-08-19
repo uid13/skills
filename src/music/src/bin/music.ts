@@ -57,6 +57,8 @@ program.command('status')
 
 // search-bili 命令：B站搜索（走 /all/v2 免 cookie/免签名端点，不受搜索接口 412 风控影响）
 // 输出结构化 JSON：{ candidates: [{ bvid, duration, play, danmaku, title }] }
+// 注意：不能 process.exit()——fetch 在 Windows 上会残留 libuv async handle，强制退出触发
+//       "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)"。用 process.exitCode 让进程自然退出。
 program.command('search-bili')
   .description('B站搜索（/all/v2 免 412）')
   .requiredOption('--keyword <词>', '搜索关键词（中文原文）')
@@ -65,10 +67,10 @@ program.command('search-bili')
     try {
       const candidates = await searchBilibili(opts.keyword, opts.ua)
       console.log(JSON.stringify({ candidates }))
-      process.exit(0)
+      process.exitCode = 0
     } catch (e) {
       console.log(JSON.stringify({ error: (e as Error).message }))
-      process.exit(1)
+      process.exitCode = 1
     }
   })
 

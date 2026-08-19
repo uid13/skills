@@ -3280,10 +3280,10 @@ program.command("search-bili").description("B站搜索（/all/v2 免 412）").re
 	try {
 		const candidates = await searchBilibili(opts.keyword, opts.ua);
 		console.log(JSON.stringify({ candidates }));
-		process.exit(0);
+		process.exitCode = 0;
 	} catch (e) {
 		console.log(JSON.stringify({ error: e.message }));
-		process.exit(1);
+		process.exitCode = 1;
 	}
 });
 program.parse();
